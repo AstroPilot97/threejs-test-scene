@@ -2,6 +2,7 @@ import "./style.css";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import * as dat from "dat.gui";
 
 // Textures loaders
@@ -77,10 +78,8 @@ gltfLoader.load(
   function (gltf) {
     gltf.scene.scale.set(0.3, 0.3, 0.3);
     gltf.scene.rotateZ(0.18);
-    gltf.scene.translateX(1);
-    gltf.scene.translateY(-0.12);
+    gltf.scene.translateOnAxis(new THREE.Vector3(1, -0.12, 0), 1);
     gltf.scene.traverse(function (node) {
-      console.log("node: ", node);
       if (node.isMesh) {
         node.castShadow = true;
       }
@@ -108,6 +107,7 @@ for (let i = 0; i < 2; i++) {
       gltf.scene.traverse(function (node) {
         if (node.isMesh) {
           node.castShadow = true;
+          node.receiveShadow = true;
         }
       });
       scene.add(gltf.scene);
@@ -118,6 +118,23 @@ for (let i = 0; i < 2; i++) {
     }
   );
 }
+
+gltfLoader.load(
+  "/models/street_lamp/scene.gltf",
+  function (gltf) {
+    gltf.scene.translateOnAxis(new THREE.Vector3(1.5, 1, 2), 1);
+    gltf.scene.traverse(function (node) {
+      if (node.isMesh) {
+        node.castShadow = true;
+      }
+    });
+    scene.add(gltf.scene);
+  },
+  undefined,
+  function (error) {
+    console.error(error);
+  }
+);
 
 // Debug
 const gui = new dat.GUI();
@@ -132,6 +149,7 @@ const scene = new THREE.Scene();
 const roadGeometry = new THREE.PlaneBufferGeometry(2.5, 5.68, 64, 64);
 const sidewalkGeometry = new THREE.PlaneBufferGeometry(0.8, 5.68, 64, 64);
 const skyBoxGeometry = new THREE.BoxGeometry(100, 100, 100, 24, 24, 24);
+const lightGeometry = new THREE.SphereBufferGeometry(1, 16, 16);
 
 // Materials
 const roadMaterial = new THREE.MeshStandardMaterial({
@@ -150,6 +168,8 @@ const sidewalkMaterial = new THREE.MeshStandardMaterial({
   aoMap: sidewalkAo,
 });
 
+const lightMaterial = new THREE.MeshBasicMaterial({ color: 0xffccaa });
+
 // Mesh
 const road = new THREE.Mesh(roadGeometry, roadMaterial);
 scene.add(road);
@@ -161,20 +181,24 @@ scene.add(skybox);
 
 const sidewalk = new THREE.Mesh(sidewalkGeometry, sidewalkMaterial);
 scene.add(sidewalk);
-sidewalk.translateY(0.081);
-sidewalk.translateX(1.75);
+sidewalk.translateOnAxis(new THREE.Vector3(1.75, 0.081, 0), 1);
 sidewalk.rotateX(-(Math.PI / 2));
+sidewalk.receiveShadow = true;
 
 // Lights
-const pointLight = new THREE.PointLight(0xffffff, 1.5);
-pointLight.position.x = 1.7;
-pointLight.position.y = 2;
-pointLight.position.z = 1.5;
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
+scene.add(ambientLight);
+
+const pointLight = new THREE.PointLight(0xffffff, 0.8);
+pointLight.position.x = 1.5;
+pointLight.position.y = 2.7;
+pointLight.position.z = 2;
 pointLight.castShadow = true;
-pointLight.shadow.mapSize.width = 1024; // default
-pointLight.shadow.mapSize.height = 1024; // default
+pointLight.shadow.mapSize.width = 2048; // default
+pointLight.shadow.mapSize.height = 2048; // default
 pointLight.shadow.camera.near = 0.5; // default
 pointLight.shadow.camera.far = 500; // default
+pointLight.shadow.bias = -0.0001;
 scene.add(pointLight);
 
 const pointLightHelper = new THREE.PointLightHelper(pointLight, 1);
@@ -183,6 +207,8 @@ scene.add(pointLightHelper);
 gui.add(pointLight.position, "x", -100, 100, 0.1);
 gui.add(pointLight.position, "y", -100, 100, 0.1);
 gui.add(pointLight.position, "z", -100, 100, 0.1);
+
+// Post-processing
 
 /**
  * Sizes
