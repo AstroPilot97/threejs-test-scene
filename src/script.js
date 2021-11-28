@@ -3,7 +3,14 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import * as dat from "dat.gui";
+
+// Global variables
+const ENTIRE_SCENE = 0,
+  BLOOM_SCENE = 1;
 
 // Textures loaders
 const textureLoader = new THREE.TextureLoader();
@@ -32,43 +39,18 @@ sidewalkRoughness.wrapS = THREE.RepeatWrapping;
 sidewalkRoughness.wrapT = THREE.RepeatWrapping;
 sidewalkAo.wrapS = THREE.RepeatWrapping;
 sidewalkAo.wrapT = THREE.RepeatWrapping;
-sidewalkTexture.repeat.set(1, 8);
-sidewalkNormal.repeat.set(1, 8);
-sidewalkRoughness.repeat.set(1, 8);
-sidewalkAo.repeat.set(1, 8);
-sidewalkHeight.repeat.set(1, 8);
+sidewalkTexture.repeat.set(1, 16);
+sidewalkNormal.repeat.set(1, 16);
+sidewalkRoughness.repeat.set(1, 16);
+sidewalkAo.repeat.set(1, 16);
+sidewalkHeight.repeat.set(1, 16);
 
 roadNormalMap.wrapS = THREE.RepeatWrapping;
 roadNormalMap.wrapT = THREE.RepeatWrapping;
 roadTexture.wrapS = THREE.RepeatWrapping;
 roadTexture.wrapT = THREE.RepeatWrapping;
-roadTexture.repeat.set(2, 4);
-roadNormalMap.repeat.set(2, 4);
-
-function createCloudPathStrings(fileName) {
-  const basePath = "../textures/clouds1/";
-  const baseFilename = basePath + fileName;
-  const fileType = ".bmp";
-  const sides = ["Right", "Left", "Top", "Bottom", "Front", "Back"];
-  const pathStings = sides.map((side) => {
-    return baseFilename + "_" + side + fileType;
-  });
-  return pathStings;
-}
-
-const skyboxImage = "Daylight Box";
-
-function createMaterialArray(fileName) {
-  const skyboxImagePaths = createCloudPathStrings(fileName);
-  // const materialArray = skyboxImagePaths.map((image) => {
-  //   let texture = new THREE.TextureLoader().load(image);
-  //   return new THREE.MeshBasicMaterial({
-  //     map: texture,
-  //     side: THREE.BackSide,
-  //   });
-  // });
-  // return materialArray;
-}
+roadTexture.repeat.set(2, 12);
+roadNormalMap.repeat.set(2, 12);
 
 // Model loaders
 const gltfLoader = new GLTFLoader();
@@ -92,18 +74,28 @@ gltfLoader.load(
   }
 );
 
-let curbConfig = [
-  new THREE.Vector3(1.4, 0, -1.23),
-  new THREE.Vector3(-1.4, 0, -1.23),
+let curbPlacementConfig = [
+  new THREE.Vector3(7.15, 0, -1.23),
+  new THREE.Vector3(3, 0, -1.23),
+  new THREE.Vector3(-2, 0, -1.23),
+  new THREE.Vector3(-7.15, 0, -1.23),
+  new THREE.Vector3(7.15, 0, -1.23),
+  new THREE.Vector3(3, 0, -1.23),
+  new THREE.Vector3(-2, 0, -1.23),
+  new THREE.Vector3(-7.15, 0, -1.23),
 ];
 
-for (let i = 0; i < 2; i++) {
+for (let i = 0; i < 8; i++) {
   gltfLoader.load(
     "/models/rocky_curb/scene.gltf",
     function (gltf) {
-      gltf.scene.rotateY(-1.57);
-      gltf.scene.translateOnAxis(curbConfig[i], 1);
-      gltf.scene.scale.set(1.05, 1, 1);
+      if (i < 4) {
+        gltf.scene.rotateY(-1.57);
+      } else {
+        gltf.scene.rotateY(1.57);
+      }
+      gltf.scene.translateOnAxis(curbPlacementConfig[i], 1);
+      gltf.scene.scale.set(2, 1, 1);
       gltf.scene.traverse(function (node) {
         if (node.isMesh) {
           node.castShadow = true;
@@ -122,7 +114,9 @@ for (let i = 0; i < 2; i++) {
 gltfLoader.load(
   "/models/street_lamp/scene.gltf",
   function (gltf) {
-    gltf.scene.translateOnAxis(new THREE.Vector3(1.5, 1, 2), 1);
+    gltf.scene.translateOnAxis(new THREE.Vector3(1.5, 0.1, 2), 1);
+    gltf.scene.scale.set(0.05, 0.05, 0.05);
+    gltf.scene.layers.enable(BLOOM_SCENE);
     gltf.scene.traverse(function (node) {
       if (node.isMesh) {
         node.castShadow = true;
@@ -146,19 +140,19 @@ const canvas = document.querySelector("canvas.webgl");
 const scene = new THREE.Scene();
 
 // Objects
-const roadGeometry = new THREE.PlaneBufferGeometry(2.5, 5.68, 64, 64);
-const sidewalkGeometry = new THREE.PlaneBufferGeometry(0.8, 5.68, 64, 64);
-const skyBoxGeometry = new THREE.BoxGeometry(100, 100, 100, 24, 24, 24);
-const lightGeometry = new THREE.SphereBufferGeometry(1, 16, 16);
+const roadGeometry = new THREE.PlaneBufferGeometry(2.5, 19.8, 64, 64);
+const sidewalkGeometry = new THREE.PlaneBufferGeometry(1.2, 19.8, 64, 64);
+const lightSphereGeo = new THREE.SphereGeometry(0.06, 32, 16);
 
 // Materials
+const materials = {};
+const darkMaterial = new THREE.MeshBasicMaterial({ color: "black" });
 const roadMaterial = new THREE.MeshStandardMaterial({
   color: "gray",
   map: roadTexture,
   normalMap: roadNormalMap,
 });
 
-const materialArray = createMaterialArray(skyboxImage);
 const sidewalkMaterial = new THREE.MeshStandardMaterial({
   map: sidewalkTexture,
   normalMap: sidewalkNormal,
@@ -168,7 +162,7 @@ const sidewalkMaterial = new THREE.MeshStandardMaterial({
   aoMap: sidewalkAo,
 });
 
-const lightMaterial = new THREE.MeshBasicMaterial({ color: 0xffccaa });
+const lightMaterial = new THREE.MeshBasicMaterial({ color: 0xffffbb });
 
 // Mesh
 const road = new THREE.Mesh(roadGeometry, roadMaterial);
@@ -176,39 +170,42 @@ scene.add(road);
 road.rotation.x = -(Math.PI / 2);
 road.receiveShadow = true;
 
-const skybox = new THREE.Mesh(skyBoxGeometry, materialArray);
-scene.add(skybox);
-
 const sidewalk = new THREE.Mesh(sidewalkGeometry, sidewalkMaterial);
+const sidewalk2 = new THREE.Mesh(sidewalkGeometry, sidewalkMaterial);
+
 scene.add(sidewalk);
-sidewalk.translateOnAxis(new THREE.Vector3(1.75, 0.081, 0), 1);
+sidewalk.translateOnAxis(new THREE.Vector3(1.95, 0.081, 0), 1);
 sidewalk.rotateX(-(Math.PI / 2));
 sidewalk.receiveShadow = true;
+
+scene.add(sidewalk2);
+sidewalk2.translateOnAxis(new THREE.Vector3(-1.95, 0.081, 0), 1);
+sidewalk2.rotateX(-(Math.PI / 2));
+sidewalk2.receiveShadow = true;
+
+const lightSphere = new THREE.Mesh(lightSphereGeo, lightMaterial);
 
 // Lights
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
 scene.add(ambientLight);
 
 const pointLight = new THREE.PointLight(0xffffff, 0.8);
-pointLight.position.x = 1.5;
-pointLight.position.y = 2.7;
+pointLight.position.x = 1.285;
+pointLight.position.y = 2.05;
 pointLight.position.z = 2;
 pointLight.castShadow = true;
-pointLight.shadow.mapSize.width = 2048; // default
-pointLight.shadow.mapSize.height = 2048; // default
-pointLight.shadow.camera.near = 0.5; // default
-pointLight.shadow.camera.far = 500; // default
+pointLight.shadow.mapSize.width = 2048;
+pointLight.shadow.mapSize.height = 2048;
+pointLight.shadow.camera.near = 0.5;
+pointLight.shadow.camera.far = 500;
 pointLight.shadow.bias = -0.0001;
+pointLight.add(lightSphere);
+lightSphere.layers.enable(BLOOM_SCENE);
 scene.add(pointLight);
 
-const pointLightHelper = new THREE.PointLightHelper(pointLight, 1);
-scene.add(pointLightHelper);
-
-gui.add(pointLight.position, "x", -100, 100, 0.1);
-gui.add(pointLight.position, "y", -100, 100, 0.1);
-gui.add(pointLight.position, "z", -100, 100, 0.1);
-
-// Post-processing
+gui.add(pointLight.position, "x", -100, 100, 0.01);
+gui.add(pointLight.position, "y", -100, 100, 0.01);
+gui.add(pointLight.position, "z", -100, 100, 0.01);
 
 /**
  * Sizes
@@ -243,8 +240,8 @@ const camera = new THREE.PerspectiveCamera(
   100
 );
 camera.position.x = 0;
-camera.position.y = 1;
-camera.position.z = 2;
+camera.position.y = 2;
+camera.position.z = 5;
 scene.add(camera);
 
 // Controls
@@ -265,6 +262,54 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ReinhardToneMapping;
+
+// Post-processing
+
+const bloomLayer = new THREE.Layers();
+bloomLayer.set(BLOOM_SCENE);
+
+const params = {
+  exposure: 1,
+  bloomStrength: 5,
+  bloomThreshold: 0,
+  bloomRadius: 0,
+};
+
+const renderScene = new RenderPass(scene, camera);
+
+const bloomPass = new UnrealBloomPass(
+  new THREE.Vector2(window.innerWidth, window.innerHeight),
+  1.5,
+  0.4,
+  0.85
+);
+bloomPass.threshold = params.bloomThreshold;
+bloomPass.strength = params.bloomStrength;
+bloomPass.radius = params.bloomRadius;
+
+const bloomComposer = new EffectComposer(renderer);
+bloomComposer.renderToScreen = false;
+bloomComposer.addPass(renderScene);
+bloomComposer.addPass(bloomPass);
+
+const finalPass = new ShaderPass(
+  new THREE.ShaderMaterial({
+    uniforms: {
+      baseTexture: { value: null },
+      bloomTexture: { value: bloomComposer.renderTarget2.texture },
+    },
+    vertexShader: document.getElementById("vertexshader").textContent,
+    fragmentShader: document.getElementById("fragmentshader").textContent,
+    defines: {},
+  }),
+  "baseTexture"
+);
+finalPass.needsSwap = true;
+
+const finalComposer = new EffectComposer(renderer);
+finalComposer.addPass(renderScene);
+finalComposer.addPass(finalPass);
 
 /**
  * Animate
@@ -275,17 +320,42 @@ const clock = new THREE.Clock();
 const tick = () => {
   const elapsedTime = clock.getElapsedTime();
   // Update objects
-  // plane.rotation.z = 1 * elapsedTime;
-  // skybox.rotation.y = 1 * elapsedTime;
 
   // Update Orbital Controls
   controls.update();
 
   // Render
-  renderer.render(scene, camera);
+  renderBloom(true);
+  finalComposer.render();
 
   // Call tick again on the next frame
   window.requestAnimationFrame(tick);
 };
 
 tick();
+
+function renderBloom(mask) {
+  if (mask === true) {
+    scene.traverse(darkenNonBloomed);
+    bloomComposer.render();
+    scene.traverse(restoreMaterial);
+  } else {
+    camera.layers.set(BLOOM_SCENE);
+    bloomComposer.render();
+    camera.layers.set(ENTIRE_SCENE);
+  }
+}
+
+function darkenNonBloomed(obj) {
+  if (obj.isMesh && bloomLayer.test(obj.layers) === false) {
+    materials[obj.uuid] = obj.material;
+    obj.material = darkMaterial;
+  }
+}
+
+function restoreMaterial(obj) {
+  if (materials[obj.uuid]) {
+    obj.material = materials[obj.uuid];
+    delete materials[obj.uuid];
+  }
+}
