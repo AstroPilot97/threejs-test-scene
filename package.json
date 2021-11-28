@@ -27,6 +27,7 @@
     "webpack-merge": "^5.7.3"
   },
   "dependencies": {
-    "postprocessing": "^6.23.2"
+    "postprocessing": "^6.23.2",
+    "stats.js": "^0.17.0"
   }
 }

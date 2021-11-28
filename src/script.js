@@ -7,6 +7,7 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import * as dat from "dat.gui";
+import Stats from "three/examples/jsm/libs/stats.module.js";
 
 // Global variables
 const ENTIRE_SCENE = 0,
@@ -116,7 +117,6 @@ gltfLoader.load(
   function (gltf) {
     gltf.scene.translateOnAxis(new THREE.Vector3(1.5, 0.1, 2), 1);
     gltf.scene.scale.set(0.05, 0.05, 0.05);
-    gltf.scene.layers.enable(BLOOM_SCENE);
     gltf.scene.traverse(function (node) {
       if (node.isMesh) {
         node.castShadow = true;
@@ -311,6 +311,12 @@ const finalComposer = new EffectComposer(renderer);
 finalComposer.addPass(renderScene);
 finalComposer.addPass(finalPass);
 
+// Stats
+
+const stats = new Stats();
+stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
+document.body.appendChild(stats.dom);
+
 /**
  * Animate
  */
@@ -328,8 +334,11 @@ const tick = () => {
   renderBloom(true);
   finalComposer.render();
 
+  // Performance analysis
+  stats.update();
+
   // Call tick again on the next frame
-  window.requestAnimationFrame(tick);
+  requestAnimationFrame(tick);
 };
 
 tick();
