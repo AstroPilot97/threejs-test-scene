@@ -86,7 +86,6 @@ let curbPlacementConfig = [
   new THREE.Vector3(-7.15, 0, -1.23),
 ];
 
-for (let i = 0; i < 8; i++) {
   gltfLoader.load(
     "/models/rocky_curb/scene.gltf",
     function (gltf) {
@@ -110,7 +109,6 @@ for (let i = 0; i < 8; i++) {
       console.error(error);
     }
   );
-}
 
 gltfLoader.load(
   "/models/street_lamp/scene.gltf",
@@ -171,7 +169,7 @@ road.rotation.x = -(Math.PI / 2);
 road.receiveShadow = true;
 
 const sidewalk = new THREE.Mesh(sidewalkGeometry, sidewalkMaterial);
-const sidewalk2 = new THREE.Mesh(sidewalkGeometry, sidewalkMaterial);
+const sidewalk2 = sidewalk.clone();
 
 scene.add(sidewalk);
 sidewalk.translateOnAxis(new THREE.Vector3(1.95, 0.081, 0), 1);
@@ -263,6 +261,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ReinhardToneMapping;
+renderer.info.autoReset = false;
 
 // Post-processing
 
@@ -317,6 +316,11 @@ const stats = new Stats();
 stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
 document.body.appendChild(stats.dom);
 
+const rendererStats = RendererStats();
+rendererStats.domElement.style.position = "absolute";
+rendererStats.domElement.style.left = "0px";
+rendererStats.domElement.style.bottom = "0px";
+document.body.appendChild(rendererStats.domElement);
 /**
  * Animate
  */
@@ -336,6 +340,8 @@ const tick = () => {
 
   // Performance analysis
   stats.update();
+  rendererStats.update(renderer);
+  renderer.info.reset();
 
   // Call tick again on the next frame
   requestAnimationFrame(tick);
@@ -367,4 +373,57 @@ function restoreMaterial(obj) {
     obj.material = materials[obj.uuid];
     delete materials[obj.uuid];
   }
+}
+
+function RendererStats() {
+  var msMin = 100;
+  var msMax = 0;
+
+  var container = document.createElement("div");
+  container.style.cssText = "width:80px;opacity:0.9;cursor:pointer";
+
+  var msDiv = document.createElement("div");
+  msDiv.style.cssText =
+    "padding:0 0 3px 3px;text-align:left;background-color:#200;";
+  container.appendChild(msDiv);
+
+  var msText = document.createElement("div");
+  msText.style.cssText =
+    "color:#f00;font-family:Helvetica,Arial,sans-serif;font-size:9px;font-weight:bold;line-height:15px";
+  msText.innerHTML = "WebGLRenderer";
+  msDiv.appendChild(msText);
+
+  var msTexts = [];
+  var nLines = 6;
+  for (var i = 0; i < nLines; i++) {
+    msTexts[i] = document.createElement("div");
+    msTexts[i].style.cssText =
+      "color:#f00;background-color:#311;font-family:Helvetica,Arial,sans-serif;font-size:9px;font-weight:bold;line-height:15px";
+    msDiv.appendChild(msTexts[i]);
+    msTexts[i].innerHTML = "-";
+  }
+
+  var lastTime = Date.now();
+  return {
+    domElement: container,
+
+    update: function (webGLRenderer) {
+      // sanity check
+      console.assert(webGLRenderer instanceof THREE.WebGLRenderer);
+
+      // refresh only 30time per second
+      if (Date.now() - lastTime < 1000 / 30) return;
+      lastTime = Date.now();
+
+      var i = 0;
+      msTexts[i++].textContent = "== Memory =====";
+      msTexts[i++].textContent =
+        "Geometries: " + webGLRenderer.info.memory.geometries;
+      msTexts[i++].textContent =
+        "Textures: " + webGLRenderer.info.memory.textures;
+      msTexts[i++].textContent = "== Render =====";
+      msTexts[i++].textContent = "Calls: " + webGLRenderer.info.render.calls;
+      msTexts[i++].textContent = "Points: " + webGLRenderer.info.render.points;
+    },
+  };
 }
