@@ -55,7 +55,6 @@ roadNormalMap.repeat.set(2, 12);
 
 // Model loaders
 const gltfLoader = new GLTFLoader();
-var dummy = new THREE.Object3D();
 
 gltfLoader.load(
   "/models/renault_logan/scene.gltf",
@@ -77,52 +76,21 @@ gltfLoader.load(
 );
 
 let curbPlacementConfig = [
-  [0.55, 0, -1.23],
-  [3, 0, -1.23],
-  [-2, 0, -1.23],
-  [-7.15, 0, -1.23],
-  [7.15, 0, -1.23],
-  [3, 0, -1.23],
-  [-2, 0, -1.23],
-  [-7.15, 0, -1.23],
+  [1.35, 0.13, 7.1],
+  [1.35, 0.13, 3],
+  [1.35, 0.13, -2],
+  [1.35, 0.13, -7.1],
+  [-1.35, 0.14, -7.1],
+  [-1.35, 0.14, -2],
+  [-1.35, 0.14, 3],
+  [-1.35, 0.14, 7.1],
 ];
-
-// for (let i = 0; i < curbPlacementConfig.length; i++) {
-//   gltfLoader.load(
-//     "/models/rocky_curb/scene.gltf",
-//     function (gltf) {
-//       if (i < 4) {
-//         gltf.scene.rotateY(-1.57);
-//       } else {
-//         gltf.scene.rotateY(1.57);
-//       }
-//       gltf.scene.translateOnAxis(curbPlacementConfig[i], 1);
-//       gltf.scene.scale.set(2, 1, 1);
-//       gltf.scene.traverse(function (node) {
-//         if (node.isMesh) {
-//           node.castShadow = true;
-//           node.receiveShadow = true;
-//         }
-//       });
-//       scene.add(gltf.scene);
-//     },
-//     undefined,
-//     function (error) {
-//       console.error(error);
-//     }
-//   );
-// }
 
 gltfLoader.load(
   "/models/rocky_curb/scene.gltf",
   function (gltf) {
-    // gltf.scene.rotateY(-1.57);
-    // gltf.scene.translateOnAxis(curbPlacementConfig[0], 1);
-    // gltf.scene.scale.set(2, 1, 1);
     gltf.scene.traverse(function (node) {
       if (node.isMesh) {
-        node.castShadow = true;
-        node.receiveShadow = true;
         var instancedCurb = new THREE.InstancedMesh(
           node.geometry,
           node.material,
@@ -130,6 +98,8 @@ gltfLoader.load(
         );
 
         for (let i = 0; i < curbPlacementConfig.length; i++) {
+          var dummy = new THREE.Object3D();
+          dummy.scale.set(2, 1, 1);
           dummy.position.set(
             curbPlacementConfig[i][0],
             curbPlacementConfig[i][1],
@@ -142,8 +112,9 @@ gltfLoader.load(
           }
           dummy.updateMatrix();
           instancedCurb.setMatrixAt(i, dummy.matrix);
-          console.log("dummy.matrix ", dummy.matrix);
         }
+        instancedCurb.receiveShadow = true;
+        instancedCurb.frustumCulled = true;
         scene.add(instancedCurb);
       }
     });
@@ -244,10 +215,6 @@ pointLight.shadow.bias = -0.0001;
 pointLight.add(lightSphere);
 lightSphere.layers.enable(BLOOM_SCENE);
 scene.add(pointLight);
-
-gui.add(pointLight.position, "x", -100, 100, 0.01);
-gui.add(pointLight.position, "y", -100, 100, 0.01);
-gui.add(pointLight.position, "z", -100, 100, 0.01);
 
 /**
  * Sizes
