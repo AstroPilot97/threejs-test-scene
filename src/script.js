@@ -55,6 +55,7 @@ roadNormalMap.repeat.set(2, 12);
 
 // Model loaders
 const gltfLoader = new GLTFLoader();
+var dummy = new THREE.Object3D();
 
 gltfLoader.load(
   "/models/renault_logan/scene.gltf",
@@ -76,39 +77,82 @@ gltfLoader.load(
 );
 
 let curbPlacementConfig = [
-  new THREE.Vector3(7.15, 0, -1.23),
-  new THREE.Vector3(3, 0, -1.23),
-  new THREE.Vector3(-2, 0, -1.23),
-  new THREE.Vector3(-7.15, 0, -1.23),
-  new THREE.Vector3(7.15, 0, -1.23),
-  new THREE.Vector3(3, 0, -1.23),
-  new THREE.Vector3(-2, 0, -1.23),
-  new THREE.Vector3(-7.15, 0, -1.23),
+  [0.55, 0, -1.23],
+  [3, 0, -1.23],
+  [-2, 0, -1.23],
+  [-7.15, 0, -1.23],
+  [7.15, 0, -1.23],
+  [3, 0, -1.23],
+  [-2, 0, -1.23],
+  [-7.15, 0, -1.23],
 ];
 
-  gltfLoader.load(
-    "/models/rocky_curb/scene.gltf",
-    function (gltf) {
-      if (i < 4) {
-        gltf.scene.rotateY(-1.57);
-      } else {
-        gltf.scene.rotateY(1.57);
-      }
-      gltf.scene.translateOnAxis(curbPlacementConfig[i], 1);
-      gltf.scene.scale.set(2, 1, 1);
-      gltf.scene.traverse(function (node) {
-        if (node.isMesh) {
-          node.castShadow = true;
-          node.receiveShadow = true;
+// for (let i = 0; i < curbPlacementConfig.length; i++) {
+//   gltfLoader.load(
+//     "/models/rocky_curb/scene.gltf",
+//     function (gltf) {
+//       if (i < 4) {
+//         gltf.scene.rotateY(-1.57);
+//       } else {
+//         gltf.scene.rotateY(1.57);
+//       }
+//       gltf.scene.translateOnAxis(curbPlacementConfig[i], 1);
+//       gltf.scene.scale.set(2, 1, 1);
+//       gltf.scene.traverse(function (node) {
+//         if (node.isMesh) {
+//           node.castShadow = true;
+//           node.receiveShadow = true;
+//         }
+//       });
+//       scene.add(gltf.scene);
+//     },
+//     undefined,
+//     function (error) {
+//       console.error(error);
+//     }
+//   );
+// }
+
+gltfLoader.load(
+  "/models/rocky_curb/scene.gltf",
+  function (gltf) {
+    // gltf.scene.rotateY(-1.57);
+    // gltf.scene.translateOnAxis(curbPlacementConfig[0], 1);
+    // gltf.scene.scale.set(2, 1, 1);
+    gltf.scene.traverse(function (node) {
+      if (node.isMesh) {
+        node.castShadow = true;
+        node.receiveShadow = true;
+        var instancedCurb = new THREE.InstancedMesh(
+          node.geometry,
+          node.material,
+          8
+        );
+
+        for (let i = 0; i < curbPlacementConfig.length; i++) {
+          dummy.position.set(
+            curbPlacementConfig[i][0],
+            curbPlacementConfig[i][1],
+            curbPlacementConfig[i][2]
+          );
+          if (i < 4) {
+            dummy.rotation.set(0, -1.57, Math.PI);
+          } else {
+            dummy.rotation.set(0, 1.57, Math.PI);
+          }
+          dummy.updateMatrix();
+          instancedCurb.setMatrixAt(i, dummy.matrix);
+          console.log("dummy.matrix ", dummy.matrix);
         }
-      });
-      scene.add(gltf.scene);
-    },
-    undefined,
-    function (error) {
-      console.error(error);
-    }
-  );
+        scene.add(instancedCurb);
+      }
+    });
+  },
+  undefined,
+  function (error) {
+    console.error(error);
+  }
+);
 
 gltfLoader.load(
   "/models/street_lamp/scene.gltf",
@@ -380,7 +424,7 @@ function RendererStats() {
   var msMax = 0;
 
   var container = document.createElement("div");
-  container.style.cssText = "width:80px;opacity:0.9;cursor:pointer";
+  container.style.cssText = "width:150px;opacity:0.9;cursor:pointer";
 
   var msDiv = document.createElement("div");
   msDiv.style.cssText =
@@ -389,7 +433,7 @@ function RendererStats() {
 
   var msText = document.createElement("div");
   msText.style.cssText =
-    "color:#f00;font-family:Helvetica,Arial,sans-serif;font-size:9px;font-weight:bold;line-height:15px";
+    "color:#f00;font-family:Helvetica,Arial,sans-serif;font-size:16px;font-weight:bold;line-height:15px";
   msText.innerHTML = "WebGLRenderer";
   msDiv.appendChild(msText);
 
@@ -398,7 +442,7 @@ function RendererStats() {
   for (var i = 0; i < nLines; i++) {
     msTexts[i] = document.createElement("div");
     msTexts[i].style.cssText =
-      "color:#f00;background-color:#311;font-family:Helvetica,Arial,sans-serif;font-size:9px;font-weight:bold;line-height:15px";
+      "color:#f00;background-color:#311;font-family:Helvetica,Arial,sans-serif;font-size:16px;font-weight:bold;line-height:15px";
     msDiv.appendChild(msTexts[i]);
     msTexts[i].innerHTML = "-";
   }
