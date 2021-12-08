@@ -53,6 +53,31 @@ roadTexture.wrapT = THREE.RepeatWrapping;
 roadTexture.repeat.set(2, 12);
 roadNormalMap.repeat.set(2, 12);
 
+function createCloudPathStrings(fileName) {
+  const basePath = "../textures/cloudy_afternoon/";
+  const baseFilename = basePath + fileName;
+  const fileType = ".bmp";
+  const sides = ["ft", "bk", "up", "dn", "rt", "lf"];
+  const pathStings = sides.map((side) => {
+    return baseFilename + "_" + side + fileType;
+  });
+  return pathStings;
+}
+
+const skyboxImage = "sky";
+
+function createMaterialArray(fileName) {
+  const skyboxImagePaths = createCloudPathStrings(fileName);
+  const materialArray = skyboxImagePaths.map((image) => {
+    let texture = new THREE.TextureLoader().load(image);
+    return new THREE.MeshBasicMaterial({
+      map: texture,
+      side: THREE.BackSide,
+    });
+  });
+  return materialArray;
+}
+
 // Model loaders
 const gltfLoader = new GLTFLoader();
 
@@ -153,12 +178,14 @@ const canvas = document.querySelector("canvas.webgl");
 const scene = new THREE.Scene();
 
 // Objects
+const skyBoxGeometry = new THREE.BoxGeometry(100, 100, 100, 24, 24, 24);
 const roadGeometry = new THREE.PlaneBufferGeometry(2.5, 19.8, 64, 64);
 const sidewalkGeometry = new THREE.PlaneBufferGeometry(1.2, 19.8, 64, 64);
 const lightSphereGeo = new THREE.SphereGeometry(0.06, 32, 16);
 
 // Materials
 const materials = {};
+const materialArray = createMaterialArray(skyboxImage);
 const darkMaterial = new THREE.MeshBasicMaterial({ color: "black" });
 const roadMaterial = new THREE.MeshStandardMaterial({
   color: "gray",
@@ -178,6 +205,9 @@ const sidewalkMaterial = new THREE.MeshStandardMaterial({
 const lightMaterial = new THREE.MeshBasicMaterial({ color: 0xffffbb });
 
 // Mesh
+const skybox = new THREE.Mesh(skyBoxGeometry, materialArray);
+scene.add(skybox);
+
 const road = new THREE.Mesh(roadGeometry, roadMaterial);
 scene.add(road);
 road.rotation.x = -(Math.PI / 2);
@@ -199,10 +229,10 @@ sidewalk2.receiveShadow = true;
 const lightSphere = new THREE.Mesh(lightSphereGeo, lightMaterial);
 
 // Lights
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
 scene.add(ambientLight);
 
-const pointLight = new THREE.PointLight(0xffffff, 0.8);
+const pointLight = new THREE.PointLight(0xffffff, 1);
 pointLight.position.x = 1.285;
 pointLight.position.y = 2.05;
 pointLight.position.z = 2;
