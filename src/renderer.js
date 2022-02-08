@@ -105,7 +105,7 @@ function init() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   // Hemisphere light
-  const hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 2);
+  const hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 1);
   hemiLight.color.setHSL(0.6, 0.75, 0.5);
   hemiLight.groundColor.setHSL(0.095, 0.5, 0.5);
   scene.add(hemiLight);
@@ -158,6 +158,11 @@ function initSky() {
   light.shadow.camera.top = 15;
   light.shadow.camera.bottom = -15;
   scene.add(light);
+
+  const opposingLight = light.clone();
+  opposingLight.castShadow = false;
+  opposingLight.intensity = light.intensity - 3;
+  scene.add(opposingLight);
 
   /// GUI
   const effectController = {
