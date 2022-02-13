@@ -56,6 +56,20 @@ function init() {
     });
   });
 
+  gltfLoader.load("models/small_air_ship/scene.glb", (gltf) => {
+    const model = gltf.scene;
+    scene.add(model);
+    model.position.set(5, 5, 15);
+    model.rotateY(Math.PI / 2);
+
+    model.traverse((node) => {
+      if (node.isMesh) {
+        node.castShadow = true;
+        node.receiveShadow = true;
+      }
+    });
+  });
+
   /**
    * Sizes
    */
@@ -106,6 +120,7 @@ function init() {
   controls.enableDamping = true;
   controls.enablePan = false;
   controls.enableKeys = true;
+  controls.maxDistance = 25;
 
   /**
    * Renderer
@@ -146,7 +161,7 @@ function animate() {
   if (cloudMesh && cloudMesh2 && cloudMesh3) {
     cloudMesh.material.uniforms.cameraPos.value.copy(camera.position);
     cloudMesh.material.uniforms.frame.value++;
-    cloudMesh.rotation.y = performance.now() / 5000;
+    cloudMesh.rotation.y = performance.now() / 3000;
 
     cloudMesh2.material.uniforms.cameraPos.value.copy(camera.position);
     cloudMesh2.material.uniforms.frame.value++;
@@ -154,7 +169,7 @@ function animate() {
 
     cloudMesh3.material.uniforms.cameraPos.value.copy(camera.position);
     cloudMesh3.material.uniforms.frame.value++;
-    cloudMesh3.rotation.y = performance.now() / 6000;
+    cloudMesh3.rotation.y = performance.now() / 10000;
   }
 
   // Update Orbital Controls
@@ -190,10 +205,10 @@ function initSky() {
   light.castShadow = true;
   light.shadow.mapSize.set(2048, 2048);
   light.shadow.bias = -0.0009;
-  light.shadow.camera.left = -15;
-  light.shadow.camera.right = 15;
-  light.shadow.camera.top = 15;
-  light.shadow.camera.bottom = -15;
+  light.shadow.camera.left = -30;
+  light.shadow.camera.right = 30;
+  light.shadow.camera.top = 30;
+  light.shadow.camera.bottom = -30;
   scene.add(light);
 
   const opposingLight = light.clone();
@@ -207,7 +222,7 @@ function initSky() {
     rayleigh: 1.1,
     mieCoefficient: 0.008,
     mieDirectionalG: 0.975,
-    elevation: 155,
+    elevation: 160,
     exposure: renderer.toneMappingExposure,
     azimuth: 113,
   };
@@ -229,6 +244,11 @@ function initSky() {
 
     renderer.toneMappingExposure = effectController.exposure;
   }
+
+  const sunControls = gui.addFolder("Sun Controls");
+  sunControls
+    .add(effectController, "elevation", 30, 160, 0.1)
+    .onChange(guiChanged);
 
   guiChanged();
 }
@@ -279,7 +299,7 @@ function initClouds() {
       map: { value: texture },
       cameraPos: { value: new THREE.Vector3() },
       threshold: { value: 0.25 },
-      opacity: { value: 0.25 },
+      opacity: { value: 0.2 },
       range: { value: 0.1 },
       steps: { value: 10 },
       frame: { value: 0 },
@@ -305,7 +325,7 @@ function initClouds() {
       threshold: { value: 0.25 },
       opacity: { value: 0.4 },
       range: { value: 0.1 },
-      steps: { value: 40 },
+      steps: { value: 35 },
       frame: { value: 0 },
     },
     vertexShader: document.getElementById("cloudVS").textContent,
@@ -315,8 +335,9 @@ function initClouds() {
   });
 
   cloudMesh2 = new THREE.Mesh(geometry, material2);
-  cloudMesh2.translateOnAxis(new Vector3(-60, 20, 50), 1);
-  cloudMesh2.scale.set(50, 30, 50);
+  cloudMesh2.translateOnAxis(new Vector3(-30, 20, 90), 1);
+  cloudMesh2.scale.set(100, 40, 100);
+  cloudMesh2.renderOrder = 1;
   scene.add(cloudMesh2);
 
   cloudMesh3 = new THREE.Mesh(geometry, material2);
