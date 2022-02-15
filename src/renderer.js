@@ -7,7 +7,6 @@ import { Sky } from "three/examples/jsm/objects/Sky.js";
 import { ImprovedNoise } from "three/examples/jsm/math/ImprovedNoise.js";
 import WebGL from "three/examples/jsm/capabilities/WebGL.js";
 import Stats from "three/examples/jsm/libs/stats.module.js";
-import { Vector3 } from "three";
 
 if (WebGL.isWebGL2Available() === false) {
   document.body.appendChild(WebGL.getWebGL2ErrorMessage());
@@ -15,8 +14,8 @@ if (WebGL.isWebGL2Available() === false) {
 
 // Global variables
 let mixer, clock, controls, renderer, scene, camera, gui;
-let sky, sun, cloudMesh, cloudMesh2, cloudMesh3;
-let stats;
+let sky, sun, cloudMesh, clouds, groundPlaneMesh;
+let stats, textureLoader;
 
 //Init scene and render animation loop
 init();
@@ -35,6 +34,9 @@ function init() {
   // Scene
   scene = new THREE.Scene();
 
+  // Texture loader
+  textureLoader = new THREE.TextureLoader();
+
   // Models
   const gltfLoader = new GLTFLoader();
   gltfLoader.load("models/peachy_balloon/scene.glb", (gltf) => {
@@ -47,20 +49,6 @@ function init() {
     gltf.animations.forEach((clip) => {
       mixer.clipAction(clip).play();
     });
-
-    model.traverse((node) => {
-      if (node.isMesh) {
-        node.castShadow = true;
-        node.receiveShadow = true;
-      }
-    });
-  });
-
-  gltfLoader.load("models/small_air_ship/scene.glb", (gltf) => {
-    const model = gltf.scene;
-    scene.add(model);
-    model.position.set(5, 5, 15);
-    model.rotateY(Math.PI / 2);
 
     model.traverse((node) => {
       if (node.isMesh) {
@@ -148,6 +136,9 @@ function init() {
 
   // Init clouds
   initClouds();
+
+  // Init ground plane
+  initGroundPlane();
 }
 
 // Animate
@@ -158,19 +149,16 @@ function animate() {
   // Update objects
   const delta = clock.getDelta();
   if (mixer) mixer.update(delta);
-  if (cloudMesh && cloudMesh2 && cloudMesh3) {
-    cloudMesh.material.uniforms.cameraPos.value.copy(camera.position);
-    cloudMesh.material.uniforms.frame.value++;
-    cloudMesh.rotation.y = performance.now() / 3000;
-
-    cloudMesh2.material.uniforms.cameraPos.value.copy(camera.position);
-    cloudMesh2.material.uniforms.frame.value++;
-    cloudMesh2.rotation.y = performance.now() / 10000;
-
-    cloudMesh3.material.uniforms.cameraPos.value.copy(camera.position);
-    cloudMesh3.material.uniforms.frame.value++;
-    cloudMesh3.rotation.y = performance.now() / 10000;
+  if (clouds) {
+    clouds.forEach((cloud) => {
+      cloud.material.uniforms.cameraPos.value.copy(camera.position);
+      cloud.material.uniforms.frame.value++;
+      cloud.rotation.y = performance.now() / 20000;
+      cloud.position.x += 0.03;
+    });
   }
+
+  if (groundPlaneMesh) groundPlaneMesh.position.x += 0.03;
 
   // Update Orbital Controls
   controls.update();
@@ -201,7 +189,7 @@ function initSky() {
   sun = new THREE.Vector3();
 
   // Sun light
-  const light = new THREE.DirectionalLight(0xffffff, 4);
+  const light = new THREE.DirectionalLight(0xffffff, 3);
   light.castShadow = true;
   light.shadow.mapSize.set(2048, 2048);
   light.shadow.bias = -0.0009;
@@ -213,7 +201,7 @@ function initSky() {
 
   const opposingLight = light.clone();
   opposingLight.castShadow = false;
-  opposingLight.intensity = light.intensity - 3;
+  opposingLight.intensity = light.intensity - 2;
   scene.add(opposingLight);
 
   /// GUI
@@ -299,30 +287,6 @@ function initClouds() {
       map: { value: texture },
       cameraPos: { value: new THREE.Vector3() },
       threshold: { value: 0.25 },
-      opacity: { value: 0.2 },
-      range: { value: 0.1 },
-      steps: { value: 10 },
-      frame: { value: 0 },
-    },
-    vertexShader: document.getElementById("cloudVS").textContent,
-    fragmentShader: document.getElementById("cloudFS").textContent,
-    side: THREE.BackSide,
-    transparent: true,
-  });
-
-  cloudMesh = new THREE.Mesh(geometry, material);
-  cloudMesh.translateY(-40);
-  cloudMesh.scale.set(3000, 50, 3000);
-  cloudMesh.receiveShadow = true;
-
-  scene.add(cloudMesh);
-  const material2 = new THREE.RawShaderMaterial({
-    glslVersion: THREE.GLSL3,
-    uniforms: {
-      base: { value: new THREE.Color(0x798aa0) },
-      map: { value: texture },
-      cameraPos: { value: new THREE.Vector3() },
-      threshold: { value: 0.25 },
       opacity: { value: 0.4 },
       range: { value: 0.1 },
       steps: { value: 35 },
@@ -334,14 +298,45 @@ function initClouds() {
     transparent: true,
   });
 
-  cloudMesh2 = new THREE.Mesh(geometry, material2);
-  cloudMesh2.translateOnAxis(new Vector3(-30, 20, 90), 1);
-  cloudMesh2.scale.set(100, 40, 100);
-  cloudMesh2.renderOrder = 1;
-  scene.add(cloudMesh2);
+  clouds = [];
 
-  cloudMesh3 = new THREE.Mesh(geometry, material2);
-  cloudMesh3.translateOnAxis(new Vector3(50, 70, -50), 1);
-  cloudMesh3.scale.set(80, 30, 80);
-  scene.add(cloudMesh3);
+  for (let i = 0; i < 15; i++) {
+    let xPos = THREE.MathUtils.randFloat(-1000, 1000);
+    let yPos = THREE.MathUtils.randFloat(10, 150);
+    let zPos = THREE.MathUtils.randFloat(-1000, 1000);
+    let xScale = THREE.MathUtils.randFloat(100, 300);
+    let yscale = THREE.MathUtils.randFloat(40, 80);
+    let zScale = THREE.MathUtils.randFloat(100, 300);
+    cloudMesh = new THREE.Mesh(geometry, material);
+    cloudMesh.translateOnAxis(new THREE.Vector3(xPos, yPos, zPos), 1);
+    cloudMesh.scale.set(xScale, yscale, zScale);
+    cloudMesh.renderOrder = i;
+    clouds.push(cloudMesh);
+    scene.add(cloudMesh);
+  }
+}
+
+function initGroundPlane() {
+  const groundPlaneTex1 = textureLoader.load("textures/mountains/mntn-tex.jpg");
+  const groundPlaneDisp1 = textureLoader.load(
+    "textures/mountains/DisplacementMap.png"
+  );
+  groundPlaneTex1.wrapS = THREE.RepeatWrapping;
+  groundPlaneTex1.wrapT = THREE.RepeatWrapping;
+  groundPlaneDisp1.wrapS = THREE.RepeatWrapping;
+  groundPlaneDisp1.wrapT = THREE.RepeatWrapping;
+  groundPlaneTex1.repeat.set(16, 16);
+  groundPlaneDisp1.repeat.set(16, 8);
+  const groundPlaneGeo = new THREE.PlaneGeometry(4096, 4096, 24, 24);
+  const groundPlaneMat1 = new THREE.MeshStandardMaterial({
+    map: groundPlaneTex1,
+    displacementMap: groundPlaneDisp1,
+    displacementScale: 1024,
+  });
+  groundPlaneMesh = new THREE.Mesh(groundPlaneGeo, groundPlaneMat1);
+  groundPlaneMesh.rotateX(-Math.PI / 2);
+  groundPlaneMesh.translateOnAxis(new THREE.Vector3(0, -0, -100), 1);
+  groundPlaneMesh.castShadow = true;
+  groundPlaneMesh.receiveShadow = true;
+  scene.add(groundPlaneMesh);
 }
