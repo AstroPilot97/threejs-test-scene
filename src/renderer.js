@@ -56,6 +56,8 @@ function init() {
         node.receiveShadow = true;
       }
     });
+
+    document.getElementById("loader").style.display = "none";
   });
 
   /**
@@ -237,6 +239,7 @@ function initSky() {
   sunControls
     .add(effectController, "elevation", 30, 160, 0.1)
     .onChange(guiChanged);
+  sunControls.add(light, "castShadow");
 
   guiChanged();
 }
@@ -336,7 +339,5 @@ function initGroundPlane() {
   groundPlaneMesh = new THREE.Mesh(groundPlaneGeo, groundPlaneMat1);
   groundPlaneMesh.rotateX(-Math.PI / 2);
   groundPlaneMesh.translateOnAxis(new THREE.Vector3(0, -0, -100), 1);
-  groundPlaneMesh.castShadow = true;
-  groundPlaneMesh.receiveShadow = true;
   scene.add(groundPlaneMesh);
 }
