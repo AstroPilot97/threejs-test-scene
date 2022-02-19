@@ -13,9 +13,10 @@ if (WebGL.isWebGL2Available() === false) {
 }
 
 // Global variables
-let mixer, clock, controls, renderer, scene, camera, gui;
+let clock, controls, renderer, scene, camera, gui;
 let sky, sun, cloudMesh, clouds, groundPlaneMesh;
-let stats, textureLoader;
+let stats, textureLoader, gltfLoader;
+let mixers = [];
 
 //Init scene and render animation loop
 init();
@@ -38,27 +39,8 @@ function init() {
   textureLoader = new THREE.TextureLoader();
 
   // Models
-  const gltfLoader = new GLTFLoader();
-  gltfLoader.load("models/peachy_balloon/scene.glb", (gltf) => {
-    const model = gltf.scene;
-    scene.add(model);
-    model.scale.set(0.005, 0.005, 0.005);
-    model.position.set(0, 5, 0);
-    model.rotateY(Math.PI);
-    mixer = new THREE.AnimationMixer(gltf.scene);
-    gltf.animations.forEach((clip) => {
-      mixer.clipAction(clip).play();
-    });
-
-    model.traverse((node) => {
-      if (node.isMesh) {
-        node.castShadow = true;
-        node.receiveShadow = true;
-      }
-    });
-
-    document.getElementById("loader").style.display = "none";
-  });
+  gltfLoader = new GLTFLoader();
+  loadBalloonModels();
 
   /**
    * Sizes
@@ -150,7 +132,11 @@ function animate() {
 
   // Update objects
   const delta = clock.getDelta();
-  if (mixer) mixer.update(delta);
+  if (mixers) {
+    mixers.forEach((mixer) => {
+      mixer.update(delta);
+    });
+  }
   if (clouds) {
     clouds.forEach((cloud) => {
       cloud.material.uniforms.cameraPos.value.copy(camera.position);
@@ -179,6 +165,40 @@ function animate() {
     __THREE_DEVTOOLS__.dispatchEvent(
       new CustomEvent("observe", { detail: renderer })
     );
+  }
+}
+
+// Balloons
+function loadBalloonModels() {
+  let balloonPlacements = [
+    new THREE.Vector3(0, 5, 0),
+    new THREE.Vector3(25, 15, -25),
+    new THREE.Vector3(14, -5, 28),
+    new THREE.Vector3(-20, 7, -19),
+    new THREE.Vector3(-30, 10, 35),
+  ];
+
+  for (let i = 0; i < 6; i++) {
+    gltfLoader.load("models/peachy_balloon/scene.glb", (gltf) => {
+      const model = gltf.scene;
+      model.scale.set(0.005, 0.005, 0.005);
+      model.rotateY(Math.PI);
+      model.translateOnAxis(balloonPlacements[i], 1);
+      const mixer = new THREE.AnimationMixer(gltf.scene);
+      gltf.animations.forEach((clip) => {
+        mixer.clipAction(clip).play();
+      });
+      mixers.push(mixer);
+
+      model.traverse((node) => {
+        if (node.isMesh) {
+          node.castShadow = true;
+          node.receiveShadow = true;
+        }
+      });
+      scene.add(model);
+      document.getElementById("loader").style.display = "none";
+    });
   }
 }
 
