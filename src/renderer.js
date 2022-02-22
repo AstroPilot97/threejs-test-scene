@@ -5,9 +5,14 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import GUI from "lil-gui";
 import { Sky } from "three/examples/jsm/objects/Sky.js";
 import { ImprovedNoise } from "three/examples/jsm/math/ImprovedNoise.js";
-import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
-import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
-import { BloomPass } from "three/examples/jsm/postprocessing/BloomPass.js";
+import {
+  BlendFunction,
+  KernelSize,
+  EffectComposer,
+  EffectPass,
+  BloomEffect,
+  RenderPass,
+} from "postprocessing";
 import WebGL from "three/examples/jsm/capabilities/WebGL.js";
 import Stats from "three/examples/jsm/libs/stats.module.js";
 
@@ -159,7 +164,7 @@ function animate() {
   controls.update();
 
   // Render
-  composer.render();
+  composer.render(delta);
 
   // Stats update
   stats.update();
@@ -375,4 +380,18 @@ function initPostProcessing() {
   renderScene = new RenderPass(scene, camera);
   composer = new EffectComposer(renderer);
   composer.addPass(renderScene);
+  initBloom();
+}
+
+function initBloom() {
+  const bloomOptions = {
+    blendFunction: BlendFunction.SCREEN,
+    kernelSize: KernelSize.MEDIUM,
+    luminanceThreshold: 0.5,
+    luminanceSmoothing: 0.2,
+    height: 480,
+  };
+  const bloomPass = new EffectPass(camera, new BloomEffect(bloomOptions));
+  bloomPass.renderToScreen = true;
+  composer.addPass(bloomPass);
 }
