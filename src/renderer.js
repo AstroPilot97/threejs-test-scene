@@ -5,6 +5,9 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import GUI from "lil-gui";
 import { Sky } from "three/examples/jsm/objects/Sky.js";
 import { ImprovedNoise } from "three/examples/jsm/math/ImprovedNoise.js";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { BloomPass } from "three/examples/jsm/postprocessing/BloomPass.js";
 import WebGL from "three/examples/jsm/capabilities/WebGL.js";
 import Stats from "three/examples/jsm/libs/stats.module.js";
 
@@ -17,6 +20,7 @@ let clock, controls, renderer, scene, camera, gui;
 let sky, sun, cloudMesh, clouds, groundPlaneMesh;
 let stats, textureLoader, gltfLoader;
 let mixers = [];
+let renderScene, composer;
 
 //Init scene and render animation loop
 init();
@@ -90,7 +94,7 @@ function init() {
   // Controls
   controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
-  controls.enablePan = false;
+  controls.enablePan = true;
   controls.enableKeys = true;
   controls.maxDistance = 25;
 
@@ -123,6 +127,9 @@ function init() {
 
   // Init ground plane
   initGroundPlane();
+
+  // Init post-processing
+  initPostProcessing();
 }
 
 // Animate
@@ -152,7 +159,7 @@ function animate() {
   controls.update();
 
   // Render
-  renderer.render(scene, camera);
+  composer.render();
 
   // Stats update
   stats.update();
@@ -176,9 +183,11 @@ function loadBalloonModels() {
     new THREE.Vector3(14, -5, 28),
     new THREE.Vector3(-20, 7, -19),
     new THREE.Vector3(-30, 10, 35),
+    new THREE.Vector3(-60, -10, 35),
+    new THREE.Vector3(-80, -8, -15),
   ];
 
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < balloonPlacements.length; i++) {
     gltfLoader.load("models/peachy_balloon/scene.glb", (gltf) => {
       const model = gltf.scene;
       model.scale.set(0.005, 0.005, 0.005);
@@ -310,9 +319,9 @@ function initClouds() {
       map: { value: texture },
       cameraPos: { value: new THREE.Vector3() },
       threshold: { value: 0.25 },
-      opacity: { value: 0.4 },
-      range: { value: 0.1 },
-      steps: { value: 35 },
+      opacity: { value: 0.3 },
+      range: { value: 0.05 },
+      steps: { value: 30 },
       frame: { value: 0 },
     },
     vertexShader: document.getElementById("cloudVS").textContent,
@@ -326,7 +335,7 @@ function initClouds() {
   for (let i = 0; i < 15; i++) {
     let xPos = THREE.MathUtils.randFloat(-1000, 1000);
     let yPos = THREE.MathUtils.randFloat(10, 150);
-    let zPos = THREE.MathUtils.randFloat(-1000, 1000);
+    let zPos = THREE.MathUtils.randFloat(-700, 700);
     let xScale = THREE.MathUtils.randFloat(100, 300);
     let yscale = THREE.MathUtils.randFloat(40, 80);
     let zScale = THREE.MathUtils.randFloat(100, 300);
@@ -360,4 +369,10 @@ function initGroundPlane() {
   groundPlaneMesh.rotateX(-Math.PI / 2);
   groundPlaneMesh.translateOnAxis(new THREE.Vector3(0, -0, -100), 1);
   scene.add(groundPlaneMesh);
+}
+
+function initPostProcessing() {
+  renderScene = new RenderPass(scene, camera);
+  composer = new EffectComposer(renderer);
+  composer.addPass(renderScene);
 }
