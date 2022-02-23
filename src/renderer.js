@@ -153,7 +153,6 @@ function animate() {
     clouds.forEach((cloud) => {
       cloud.material.uniforms.cameraPos.value.copy(camera.position);
       cloud.material.uniforms.frame.value++;
-      cloud.rotation.y = performance.now() / 20000;
       cloud.position.x += 0.03;
     });
   }
@@ -372,7 +371,7 @@ function initGroundPlane() {
   });
   groundPlaneMesh = new THREE.Mesh(groundPlaneGeo, groundPlaneMat1);
   groundPlaneMesh.rotateX(-Math.PI / 2);
-  groundPlaneMesh.translateOnAxis(new THREE.Vector3(0, -0, -100), 1);
+  groundPlaneMesh.translateOnAxis(new THREE.Vector3(-300, -0, -100), 1);
   scene.add(groundPlaneMesh);
 }
 
@@ -387,7 +386,7 @@ function initBloom() {
   const bloomOptions = {
     blendFunction: BlendFunction.SCREEN,
     kernelSize: KernelSize.MEDIUM,
-    luminanceThreshold: 0.5,
+    luminanceThreshold: 0.65,
     luminanceSmoothing: 0.2,
     height: 480,
   };
