@@ -81,7 +81,7 @@ function init() {
     75,
     sizes.width / sizes.height,
     0.1,
-    2000
+    3000
   );
   camera.position.x = 0;
   camera.position.y = -5;
@@ -109,6 +109,9 @@ function init() {
   renderer = new THREE.WebGLRenderer({
     canvas: canvas,
     alpha: true,
+    antialias: false,
+    stencil: false,
+    depth: false,
   });
 
   renderer.setSize(sizes.width, sizes.height);
@@ -210,7 +213,9 @@ function loadBalloonModels() {
         }
       });
       scene.add(model);
-      document.getElementById("loader").style.display = "none";
+      if (i == balloonPlacements.length - 1) {
+        document.getElementById("loader").style.display = "none";
+      }
     });
   }
 }
@@ -336,16 +341,32 @@ function initClouds() {
 
   clouds = [];
 
-  for (let i = 0; i < 15; i++) {
-    let xPos = THREE.MathUtils.randFloat(-1000, 1000);
-    let yPos = THREE.MathUtils.randFloat(10, 150);
-    let zPos = THREE.MathUtils.randFloat(-700, 700);
-    let xScale = THREE.MathUtils.randFloat(100, 300);
-    let yscale = THREE.MathUtils.randFloat(40, 80);
-    let zScale = THREE.MathUtils.randFloat(100, 300);
+  const cloudPlacement = [
+    new THREE.Vector3(-1156, 69, -270),
+    new THREE.Vector3(547, 55, 957),
+    new THREE.Vector3(-239, 103, 521),
+    new THREE.Vector3(398, 52, -197),
+    new THREE.Vector3(-169, 46, -74),
+    new THREE.Vector3(-150, 1, 63),
+  ];
+
+  const cloudScaling = [
+    [913, 194, 1061],
+    [1526, 306, 1152],
+    [470, 220, 442],
+    [914, 82, 643],
+    [281, 73, 297],
+    [97, 40, 113],
+  ];
+
+  for (let i = 0; i < cloudPlacement.length; i++) {
     cloudMesh = new THREE.Mesh(geometry, material);
-    cloudMesh.translateOnAxis(new THREE.Vector3(xPos, yPos, zPos), 1);
-    cloudMesh.scale.set(xScale, yscale, zScale);
+    cloudMesh.translateOnAxis(cloudPlacement[i], 1);
+    cloudMesh.scale.set(
+      cloudScaling[i][0],
+      cloudScaling[i][1],
+      cloudScaling[i][2]
+    );
     cloudMesh.renderOrder = i;
     clouds.push(cloudMesh);
     scene.add(cloudMesh);
@@ -357,6 +378,7 @@ function initGroundPlane() {
   const groundPlaneDisp1 = textureLoader.load(
     "textures/mountains/DisplacementMap.png"
   );
+  groundPlaneTex1.anisotropy = 16;
   groundPlaneTex1.wrapS = THREE.RepeatWrapping;
   groundPlaneTex1.wrapT = THREE.RepeatWrapping;
   groundPlaneDisp1.wrapS = THREE.RepeatWrapping;
