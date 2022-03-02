@@ -12,6 +12,7 @@ import {
   EffectPass,
   BloomEffect,
   RenderPass,
+  DepthOfFieldEffect,
 } from "postprocessing";
 import WebGL from "three/examples/jsm/capabilities/WebGL.js";
 import Stats from "three/examples/jsm/libs/stats.module.js";
@@ -277,7 +278,6 @@ function initSky() {
   sunControls
     .add(effectController, "elevation", 30, 160, 0.1)
     .onChange(guiChanged);
-  sunControls.add(light, "castShadow");
 
   guiChanged();
 }
@@ -402,6 +402,7 @@ function initPostProcessing() {
   composer = new EffectComposer(renderer);
   composer.addPass(renderScene);
   initBloom();
+  initDepthOfField();
 }
 
 function initBloom() {
@@ -413,6 +414,17 @@ function initBloom() {
     height: 480,
   };
   const bloomPass = new EffectPass(camera, new BloomEffect(bloomOptions));
-  bloomPass.renderToScreen = true;
   composer.addPass(bloomPass);
+}
+
+function initDepthOfField() {
+  const depthOfFieldEffect = new DepthOfFieldEffect(camera, {
+    focusDistance: 0.0,
+    focalLength: 0.038,
+    bokehScale: 2.0,
+    height: 480,
+  });
+  const dofPass = new EffectPass(camera, depthOfFieldEffect);
+  dofPass.renderToScreen = true;
+  composer.addPass(dofPass);
 }
