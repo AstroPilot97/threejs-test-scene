@@ -11,13 +11,15 @@ import {
   EffectComposer,
   EffectPass,
   BloomEffect,
+  NormalPass,
+  DepthDownsamplingPass,
+  SSAOEffect,
   RenderPass,
   DepthOfFieldEffect,
 } from "postprocessing";
 import WebGL from "three/examples/jsm/capabilities/WebGL.js";
 import Stats from "three/examples/jsm/libs/stats.module.js";
 import { MathUtils } from "three";
-import * as BufferGeometryUtils from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 if (WebGL.isWebGL2Available() === false) {
   document.body.appendChild(WebGL.getWebGL2ErrorMessage());
@@ -30,6 +32,7 @@ let stats, textureLoader, gltfLoader;
 let mixers = [];
 let renderScene, composer;
 let instancedTrees;
+let capabilities;
 
 //Init scene and render animation loop
 init();
@@ -438,6 +441,7 @@ function initPostProcessing() {
   composer = new EffectComposer(renderer);
   composer.addPass(renderScene);
   initBloom();
+  initSSAO();
   initDepthOfField();
 }
 
@@ -456,11 +460,46 @@ function initBloom() {
 function initDepthOfField() {
   const depthOfFieldEffect = new DepthOfFieldEffect(camera, {
     focusDistance: 0.0,
-    focalLength: 0.038,
+    focalLength: 0.064,
     bokehScale: 2.0,
     height: 480,
   });
   const dofPass = new EffectPass(camera, depthOfFieldEffect);
   dofPass.renderToScreen = true;
   composer.addPass(dofPass);
+}
+
+function initSSAO() {
+  capabilities = renderer.capabilities;
+  const normalPass = new NormalPass(scene, camera);
+  const depthDownsamplingPass = new DepthDownsamplingPass({
+    normalBuffer: normalPass.texture,
+    resolutionScale: 0.5,
+  });
+  const normalDepthBuffer = capabilities.isWebGL2
+    ? depthDownsamplingPass.texture
+    : null;
+  const ssaoEffect = new SSAOEffect(camera, normalPass.texture, {
+    blendFunction: BlendFunction.MULTIPLY,
+    distanceScaling: true,
+    depthAwareUpsampling: true,
+    normalDepthBuffer,
+    samples: 9,
+    rings: 7,
+    distanceThreshold: 0.2, // Render up to a distance of ~20 world units
+    distanceFalloff: 0.0025, // with an additional ~2.5 units of falloff.
+    rangeThreshold: 0.0003, // Occlusion proximity of ~0.3 world units
+    rangeFalloff: 0.0001, // with ~0.1 units of falloff.
+    luminanceInfluence: 0.7,
+    minRadiusScale: 0.33,
+    radius: 0.1,
+    intensity: 1.33,
+    bias: 0.025,
+    fade: 0.01,
+    color: null,
+    resolutionScale: 0.5,
+  });
+
+  const ssaoPass = new EffectPass(camera, ssaoEffect);
+  composer.addPass(ssaoPass);
 }
