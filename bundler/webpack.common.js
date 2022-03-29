@@ -9,6 +9,9 @@ module.exports = {
     filename: "bundle.[contenthash].js",
     path: path.resolve(__dirname, "../dist"),
   },
+  experiments: {
+    topLevelAwait: true,
+  },
   devtool: "source-map",
   plugins: [
     new CopyWebpackPlugin({

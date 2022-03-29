@@ -16,6 +16,8 @@ import {
 } from "postprocessing";
 import WebGL from "three/examples/jsm/capabilities/WebGL.js";
 import Stats from "three/examples/jsm/libs/stats.module.js";
+import { MathUtils } from "three";
+import * as BufferGeometryUtils from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 if (WebGL.isWebGL2Available() === false) {
   document.body.appendChild(WebGL.getWebGL2ErrorMessage());
@@ -27,6 +29,7 @@ let sky, sun, cloudMesh, clouds, groundPlaneMesh;
 let stats, textureLoader, gltfLoader;
 let mixers = [];
 let renderScene, composer;
+let instancedTrees;
 
 //Init scene and render animation loop
 init();
@@ -51,6 +54,7 @@ function init() {
   // Models
   gltfLoader = new GLTFLoader();
   loadBalloonModels();
+  initForests();
 
   /**
    * Sizes
@@ -162,6 +166,7 @@ function animate() {
   }
 
   if (groundPlaneMesh) groundPlaneMesh.position.x += 0.03;
+  if (instancedTrees) instancedTrees.position.x += 0.03;
 
   // Update Orbital Controls
   controls.update();
@@ -219,6 +224,37 @@ function loadBalloonModels() {
       }
     });
   }
+}
+
+// Forests
+function initForests() {
+  gltfLoader.load("models/pine_tree/scene.glb", (gltf) => {
+    const model = gltf.scene;
+    model.traverse(function (node) {
+      if (node.isMesh) {
+        instancedTrees = new THREE.InstancedMesh(
+          node.geometry,
+          node.material,
+          20000
+        );
+
+        for (let i = 0; i < instancedTrees.count; i++) {
+          var dummy = new THREE.Object3D();
+          dummy.rotation.set(-1.4, 0, 0);
+          dummy.scale.set(5, 5, 5);
+          dummy.position.set(
+            MathUtils.randFloat(-2000, 2000),
+            MathUtils.randFloat(-90, -88),
+            MathUtils.randFloat(-2000, 2000)
+          );
+          dummy.updateMatrix();
+          instancedTrees.setMatrixAt(i, dummy.matrix);
+        }
+        instancedTrees.castShadow = true;
+        scene.add(instancedTrees);
+      }
+    });
+  });
 }
 
 // Sky
@@ -312,7 +348,7 @@ function initClouds() {
     }
   }
 
-  const texture = new THREE.DataTexture3D(data, size, size, size);
+  const texture = new THREE.Data3DTexture(data, size, size, size);
   texture.format = THREE.RedFormat;
   texture.minFilter = THREE.LinearFilter;
   texture.magFilter = THREE.LinearFilter;
