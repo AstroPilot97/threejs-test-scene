@@ -1,6 +1,5 @@
 import "./style.css";
 import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import GUI from "lil-gui";
 import { Sky } from "three/examples/jsm/objects/Sky.js";
@@ -11,9 +10,6 @@ import {
   EffectComposer,
   EffectPass,
   BloomEffect,
-  NormalPass,
-  DepthDownsamplingPass,
-  SSAOEffect,
   RenderPass,
   DepthOfFieldEffect,
 } from "postprocessing";
@@ -26,13 +22,12 @@ if (WebGL.isWebGL2Available() === false) {
 }
 
 // Global variables
-let clock, controls, renderer, scene, camera, gui;
+let clock, renderer, scene, camera, gui;
 let sky, sun, cloudMesh, clouds, groundPlaneMesh;
 let stats, textureLoader, gltfLoader;
 let mixers = [];
 let renderScene, composer;
-let instancedTrees;
-let capabilities;
+let instancedTrees, dofEffectUniforms;
 
 //Init scene and render animation loop
 init();
@@ -92,9 +87,27 @@ function init() {
     3000
   );
   camera.position.x = 0;
-  camera.position.y = -5;
+  camera.position.y = 0;
   camera.position.z = 15;
   scene.add(camera);
+
+  // Keyboard controls
+  document.addEventListener("keydown", onDocumentKeyDown, false);
+  function onDocumentKeyDown(event) {
+    var keyCode = event.which;
+    if (keyCode == 49) {
+      camera.position.set(0, 0, 15);
+    } else if (keyCode == 50) {
+      camera.position.set(50, -90, 120);
+    } else if (keyCode == 51) {
+      camera.position.set(20, 5, -25);
+    } else if (keyCode == 52) {
+      camera.position.set(60, 5, 15);
+    } else if (keyCode == 53) {
+      camera.position.set(20, -65, 125);
+    }
+    camera.lookAt(0, 0, 0);
+  }
 
   // Stats
   stats = new Stats();
@@ -103,13 +116,6 @@ function init() {
     child.style.display = panels.includes(index) ? "inline-block" : "none";
   });
   document.body.appendChild(stats.dom);
-
-  // Controls
-  controls = new OrbitControls(camera, canvas);
-  controls.enableDamping = true;
-  controls.enablePan = true;
-  controls.enableKeys = true;
-  controls.maxDistance = 25;
 
   /**
    * Renderer
@@ -170,9 +176,6 @@ function animate() {
 
   if (groundPlaneMesh) groundPlaneMesh.position.x += 0.03;
   if (instancedTrees) instancedTrees.position.x += 0.03;
-
-  // Update Orbital Controls
-  controls.update();
 
   // Render
   composer.render(delta);
@@ -441,7 +444,6 @@ function initPostProcessing() {
   composer = new EffectComposer(renderer);
   composer.addPass(renderScene);
   initBloom();
-  initSSAO();
   initDepthOfField();
 }
 
@@ -458,48 +460,14 @@ function initBloom() {
 }
 
 function initDepthOfField() {
-  const depthOfFieldEffect = new DepthOfFieldEffect(camera, {
-    focusDistance: 0.0,
+  dofEffectUniforms = {
+    focusDistance: 0,
     focalLength: 0.064,
     bokehScale: 2.0,
     height: 480,
-  });
+  };
+  const depthOfFieldEffect = new DepthOfFieldEffect(camera, dofEffectUniforms);
   const dofPass = new EffectPass(camera, depthOfFieldEffect);
   dofPass.renderToScreen = true;
   composer.addPass(dofPass);
-}
-
-function initSSAO() {
-  capabilities = renderer.capabilities;
-  const normalPass = new NormalPass(scene, camera);
-  const depthDownsamplingPass = new DepthDownsamplingPass({
-    normalBuffer: normalPass.texture,
-    resolutionScale: 0.5,
-  });
-  const normalDepthBuffer = capabilities.isWebGL2
-    ? depthDownsamplingPass.texture
-    : null;
-  const ssaoEffect = new SSAOEffect(camera, normalPass.texture, {
-    blendFunction: BlendFunction.MULTIPLY,
-    distanceScaling: true,
-    depthAwareUpsampling: true,
-    normalDepthBuffer,
-    samples: 9,
-    rings: 7,
-    distanceThreshold: 0.2, // Render up to a distance of ~20 world units
-    distanceFalloff: 0.0025, // with an additional ~2.5 units of falloff.
-    rangeThreshold: 0.0003, // Occlusion proximity of ~0.3 world units
-    rangeFalloff: 0.0001, // with ~0.1 units of falloff.
-    luminanceInfluence: 0.7,
-    minRadiusScale: 0.33,
-    radius: 0.1,
-    intensity: 1.33,
-    bias: 0.025,
-    fade: 0.01,
-    color: null,
-    resolutionScale: 0.5,
-  });
-
-  const ssaoPass = new EffectPass(camera, ssaoEffect);
-  composer.addPass(ssaoPass);
 }
