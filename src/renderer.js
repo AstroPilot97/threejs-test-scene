@@ -100,11 +100,11 @@ function init() {
     } else if (keyCode == 50) {
       camera.position.set(50, -90, 120);
     } else if (keyCode == 51) {
-      camera.position.set(20, 5, -25);
+      camera.position.set(1, 60, 0);
     } else if (keyCode == 52) {
       camera.position.set(60, 5, 15);
     } else if (keyCode == 53) {
-      camera.position.set(20, -65, 125);
+      camera.position.set(-50, 15, -55);
     }
     camera.lookAt(0, 0, 0);
   }
@@ -123,7 +123,7 @@ function init() {
   renderer = new THREE.WebGLRenderer({
     canvas: canvas,
     alpha: true,
-    antialias: false,
+    antialias: true,
     stencil: false,
     depth: false,
   });
@@ -241,12 +241,12 @@ function initForests() {
         instancedTrees = new THREE.InstancedMesh(
           node.geometry,
           node.material,
-          20000
+          40000
         );
 
         for (let i = 0; i < instancedTrees.count; i++) {
           var dummy = new THREE.Object3D();
-          dummy.rotation.set(-1.4, 0, 0);
+          dummy.rotation.set(-1.5, 0, MathUtils.randFloat(-3, 3));
           dummy.scale.set(5, 5, 5);
           dummy.position.set(
             MathUtils.randFloat(-2000, 2000),
@@ -257,6 +257,7 @@ function initForests() {
           instancedTrees.setMatrixAt(i, dummy.matrix);
         }
         instancedTrees.castShadow = true;
+        instancedTrees.receiveShadow = true;
         scene.add(instancedTrees);
       }
     });
@@ -386,19 +387,23 @@ function initClouds() {
   const cloudPlacement = [
     new THREE.Vector3(-1156, 69, -270),
     new THREE.Vector3(547, 55, 957),
+    new THREE.Vector3(-800, 400, 500),
     new THREE.Vector3(-239, 103, 521),
+    new THREE.Vector3(-650, 0, 450),
     new THREE.Vector3(398, 52, -197),
-    new THREE.Vector3(-169, 46, -74),
-    new THREE.Vector3(-150, 1, 63),
+    new THREE.Vector3(-169, 69, -74),
+    new THREE.Vector3(-140, 4, 20),
   ];
 
   const cloudScaling = [
     [913, 194, 1061],
     [1526, 306, 1152],
+    [1500, 150, 1850],
     [470, 220, 442],
+    [300, 140, 400],
     [914, 82, 643],
     [281, 73, 297],
-    [97, 40, 113],
+    [100, 70, 150],
   ];
 
   for (let i = 0; i < cloudPlacement.length; i++) {
