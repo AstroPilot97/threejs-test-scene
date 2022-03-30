@@ -23,9 +23,18 @@ if (WebGL.isWebGL2Available() === false) {
 
 // Global variables
 let clock, renderer, scene, camera, gui;
-let sky, sun, cloudMesh, clouds, groundPlaneMesh;
+let sky,
+  sun,
+  sunLight,
+  sunEffectController,
+  phi,
+  theta,
+  cloudMesh,
+  clouds,
+  groundPlaneMesh;
 let stats, textureLoader, gltfLoader;
-let mixers = [];
+let mixers = [],
+  cameraPositions = [];
 let renderScene, composer;
 let instancedTrees, dofEffectUniforms;
 
@@ -91,23 +100,25 @@ function init() {
   camera.position.z = 15;
   scene.add(camera);
 
-  // Keyboard controls
-  document.addEventListener("keydown", onDocumentKeyDown, false);
-  function onDocumentKeyDown(event) {
-    var keyCode = event.which;
-    if (keyCode == 49) {
-      camera.position.set(0, 0, 15);
-    } else if (keyCode == 50) {
-      camera.position.set(50, -90, 120);
-    } else if (keyCode == 51) {
-      camera.position.set(1, 60, 0);
-    } else if (keyCode == 52) {
-      camera.position.set(60, 5, 15);
-    } else if (keyCode == 53) {
-      camera.position.set(-50, 15, -55);
-    }
+  // Camera position loop
+  let currentPosition = 0;
+  cameraPositions = [
+    [0, 0, 15],
+    [50, -90, 120],
+    [1, 60, 0],
+    [60, 5, 15],
+    [-50, 15, -55],
+  ];
+
+  setInterval(function () {
+    let indexPosition = ++currentPosition % cameraPositions.length;
+    camera.position.set(
+      cameraPositions[indexPosition][0],
+      cameraPositions[indexPosition][1],
+      cameraPositions[indexPosition][2]
+    );
     camera.lookAt(0, 0, 0);
-  }
+  }, 20000);
 
   // Stats
   stats = new Stats();
@@ -170,12 +181,24 @@ function animate() {
     clouds.forEach((cloud) => {
       cloud.material.uniforms.cameraPos.value.copy(camera.position);
       cloud.material.uniforms.frame.value++;
-      cloud.position.x += 0.03;
+      cloud.position.x += 0.1;
     });
   }
 
-  if (groundPlaneMesh) groundPlaneMesh.position.x += 0.03;
-  if (instancedTrees) instancedTrees.position.x += 0.03;
+  if (groundPlaneMesh) groundPlaneMesh.position.x += 0.1;
+  if (instancedTrees) instancedTrees.position.x += 0.1;
+
+  if (sun && sunLight && sunEffectController) {
+    sunEffectController.elevation -= 0.1;
+    phi = THREE.MathUtils.degToRad(90 - sunEffectController.elevation);
+    theta = THREE.MathUtils.degToRad(sunEffectController.azimuth);
+
+    sun.setFromSphericalCoords(1, phi, theta);
+    sunLight.position.setFromSphericalCoords(50, phi, theta);
+    sky.material.uniforms.sunPosition.value.copy(sun);
+    sunLight.castShadow = sunLight.position.y > 0;
+    renderer.toneMappingExposure = sunLight.position.y > -3 ? 0.35 : 0.1;
+  }
 
   // Render
   composer.render(delta);
@@ -273,54 +296,49 @@ function initSky() {
   sun = new THREE.Vector3();
 
   // Sun light
-  const light = new THREE.DirectionalLight(0xffffff, 3);
-  light.castShadow = true;
-  light.shadow.mapSize.set(2048, 2048);
-  light.shadow.bias = -0.0009;
-  light.shadow.camera.left = -30;
-  light.shadow.camera.right = 30;
-  light.shadow.camera.top = 30;
-  light.shadow.camera.bottom = -30;
-  scene.add(light);
+  sunLight = new THREE.DirectionalLight(0xffffff, 3);
+  sunLight.castShadow = true;
+  sunLight.shadow.mapSize.set(2048, 2048);
+  sunLight.shadow.bias = -0.0009;
+  sunLight.shadow.camera.left = -30;
+  sunLight.shadow.camera.right = 30;
+  sunLight.shadow.camera.top = 30;
+  sunLight.shadow.camera.bottom = -30;
+  scene.add(sunLight);
 
-  const opposingLight = light.clone();
+  const opposingLight = sunLight.clone();
   opposingLight.castShadow = false;
-  opposingLight.intensity = light.intensity - 2;
+  opposingLight.intensity = sunLight.intensity - 2;
   scene.add(opposingLight);
 
   /// GUI
-  const effectController = {
+  sunEffectController = {
     turbidity: 5.5,
     rayleigh: 1.1,
     mieCoefficient: 0.008,
     mieDirectionalG: 0.975,
     elevation: 160,
     exposure: renderer.toneMappingExposure,
-    azimuth: 113,
+    azimuth: 60,
   };
 
   function guiChanged() {
     const uniforms = sky.material.uniforms;
-    uniforms["turbidity"].value = effectController.turbidity;
-    uniforms["rayleigh"].value = effectController.rayleigh;
-    uniforms["mieCoefficient"].value = effectController.mieCoefficient;
-    uniforms["mieDirectionalG"].value = effectController.mieDirectionalG;
+    uniforms["turbidity"].value = sunEffectController.turbidity;
+    uniforms["rayleigh"].value = sunEffectController.rayleigh;
+    uniforms["mieCoefficient"].value = sunEffectController.mieCoefficient;
+    uniforms["mieDirectionalG"].value = sunEffectController.mieDirectionalG;
 
-    const phi = THREE.MathUtils.degToRad(90 - effectController.elevation);
-    const theta = THREE.MathUtils.degToRad(effectController.azimuth);
+    phi = THREE.MathUtils.degToRad(90 - sunEffectController.elevation);
+    theta = THREE.MathUtils.degToRad(sunEffectController.azimuth);
 
     sun.setFromSphericalCoords(1, phi, theta);
-    light.position.setFromSphericalCoords(50, phi, theta);
+    sunLight.position.setFromSphericalCoords(50, phi, theta);
 
     uniforms["sunPosition"].value.copy(sun);
 
-    renderer.toneMappingExposure = effectController.exposure;
+    renderer.toneMappingExposure = sunEffectController.exposure;
   }
-
-  const sunControls = gui.addFolder("Sun Controls");
-  sunControls
-    .add(effectController, "elevation", 30, 160, 0.1)
-    .onChange(guiChanged);
 
   guiChanged();
 }
