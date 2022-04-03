@@ -4,11 +4,15 @@
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<title>ThreeJS Starter</title>
+	<title>ThreeJS Performance Test</title>
 </head>
 
 <body>
 	<div id="loader"></div>
+	<div id="info">
+		<p><a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> - performance test scene</p>
+		<p id="timeElapsed"></p>
+	</div>
 	<canvas class="webgl"></canvas>
 	<script id="cloudVS" type="x-shader/x-vertex">
           in vec3 position;

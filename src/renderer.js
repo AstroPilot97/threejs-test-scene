@@ -16,13 +16,15 @@ import {
 import WebGL from "three/examples/jsm/capabilities/WebGL.js";
 import Stats from "three/examples/jsm/libs/stats.module.js";
 import { MathUtils } from "three";
+import { saveAs } from "file-saver";
+import Moment from "moment";
 
 if (WebGL.isWebGL2Available() === false) {
   document.body.appendChild(WebGL.getWebGL2ErrorMessage());
 }
 
 // Global variables
-let clock, renderer, scene, camera, gui;
+let clock, renderer, scene, camera, timer, gui;
 let sky,
   sun,
   sunLight,
@@ -37,6 +39,10 @@ let mixers = [],
   cameraPositions = [];
 let renderScene, composer;
 let instancedTrees, dofEffectUniforms;
+let fps;
+let testResults = [],
+  times = [];
+let sizes;
 
 //Init scene and render animation loop
 init();
@@ -45,6 +51,7 @@ animate();
 function init() {
   // Clock
   clock = new THREE.Clock();
+  timer = new THREE.Clock(false);
 
   // Debug
   gui = new GUI();
@@ -66,7 +73,7 @@ function init() {
   /**
    * Sizes
    */
-  const sizes = {
+  sizes = {
     width: window.innerWidth,
     height: window.innerHeight,
   };
@@ -163,6 +170,12 @@ function init() {
 
   // Init post-processing
   initPostProcessing();
+
+  // Clock timer
+  startClockTimer();
+
+  // Test controls
+  initTestResultControls();
 }
 
 // Animate
@@ -181,15 +194,15 @@ function animate() {
     clouds.forEach((cloud) => {
       cloud.material.uniforms.cameraPos.value.copy(camera.position);
       cloud.material.uniforms.frame.value++;
-      cloud.position.x += 0.1;
+      cloud.position.x += 0.05;
     });
   }
 
-  if (groundPlaneMesh) groundPlaneMesh.position.x += 0.1;
-  if (instancedTrees) instancedTrees.position.x += 0.1;
+  if (groundPlaneMesh) groundPlaneMesh.position.x += 0.05;
+  if (instancedTrees) instancedTrees.position.x += 0.05;
 
   if (sun && sunLight && sunEffectController) {
-    sunEffectController.elevation -= 0.1;
+    sunEffectController.elevation -= 0.05;
     phi = THREE.MathUtils.degToRad(90 - sunEffectController.elevation);
     theta = THREE.MathUtils.degToRad(sunEffectController.azimuth);
 
@@ -205,6 +218,9 @@ function animate() {
 
   // Stats update
   stats.update();
+
+  // Fps counter loop
+  fpsCounterLoop();
 
   //Three-Devtools API
   if (typeof __THREE_DEVTOOLS__ !== "undefined") {
@@ -227,6 +243,11 @@ function loadBalloonModels() {
     new THREE.Vector3(-30, 10, 35),
     new THREE.Vector3(-60, -10, 35),
     new THREE.Vector3(-80, -8, -15),
+    new THREE.Vector3(80, 5, -15),
+    new THREE.Vector3(4, -4, -55),
+    new THREE.Vector3(25, 13, 55),
+    new THREE.Vector3(-14, 4, 55),
+    new THREE.Vector3(-25, 8, -55),
   ];
 
   for (let i = 0; i < balloonPlacements.length; i++) {
@@ -250,6 +271,7 @@ function loadBalloonModels() {
       scene.add(model);
       if (i == balloonPlacements.length - 1) {
         document.getElementById("loader").style.display = "none";
+        timer.start();
       }
     });
   }
@@ -264,7 +286,7 @@ function initForests() {
         instancedTrees = new THREE.InstancedMesh(
           node.geometry,
           node.material,
-          40000
+          60000
         );
 
         for (let i = 0; i < instancedTrees.count; i++) {
@@ -281,6 +303,7 @@ function initForests() {
         }
         instancedTrees.castShadow = true;
         instancedTrees.receiveShadow = true;
+        instancedTrees.frustumCulled = false;
         scene.add(instancedTrees);
       }
     });
@@ -493,4 +516,57 @@ function initDepthOfField() {
   const dofPass = new EffectPass(camera, depthOfFieldEffect);
   dofPass.renderToScreen = true;
   composer.addPass(dofPass);
+}
+
+function startClockTimer() {
+  setInterval(function () {
+    let elapsedTimeSeconds = Math.round(timer.getElapsedTime());
+    let elapsedTimeMinutes = elapsedTimeSeconds / 60;
+    elapsedTimeSeconds = Math.floor(elapsedTimeSeconds) % 60;
+    elapsedTimeMinutes = Math.floor(elapsedTimeMinutes) % 60;
+    let stringMinutes = elapsedTimeMinutes.toLocaleString();
+    let stringSeconds = elapsedTimeSeconds.toLocaleString();
+    if (elapsedTimeSeconds.toString().length < 2) {
+      stringSeconds = "0" + stringSeconds;
+    }
+    document.getElementById(
+      "timeElapsed"
+    ).innerHTML = `Time elapsed: ${stringMinutes}:${stringSeconds}`;
+    if (Math.round(timer.getElapsedTime()) > 0) {
+      testResults.push(fps);
+    }
+  }, 1000);
+}
+
+function initTestResultControls() {
+  let controlObj = {
+    SaveTestResults: function () {
+      var testFile = new File(
+        [
+          `Three.js performance test results \n
+          Testing date: ${Moment().toLocaleString()}; \n
+          Screen resolution: width: ${sizes.width}, height: ${sizes.height} \n
+          Frames per second (each FPS count in array was ticked every second):
+          [${testResults}]
+          `,
+        ],
+        "test_results.txt",
+        {
+          type: "text/plain;charset=utf-8",
+        }
+      );
+      saveAs(testFile);
+    },
+  };
+
+  gui.add(controlObj, "SaveTestResults");
+}
+
+function fpsCounterLoop() {
+  const now = performance.now();
+  while (times.length > 0 && times[0] <= now - 1000) {
+    times.shift();
+  }
+  times.push(now);
+  fps = times.length;
 }
