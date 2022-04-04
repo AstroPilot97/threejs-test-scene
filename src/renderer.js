@@ -200,6 +200,10 @@ function animate() {
 
   if (groundPlaneMesh) groundPlaneMesh.position.x += 0.05;
   if (instancedTrees) instancedTrees.position.x += 0.05;
+  if (instancedTrees && instancedTrees.position.x > 1600)
+    instancedTrees.position.x = 0;
+  if (groundPlaneMesh && groundPlaneMesh.position.x > 1300)
+    groundPlaneMesh.position.x = -300;
 
   if (sun && sunLight && sunEffectController) {
     sunEffectController.elevation -= 0.05;
