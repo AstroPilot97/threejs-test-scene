@@ -37,12 +37,14 @@ let sky,
 let stats, textureLoader, gltfLoader;
 let mixers = [],
   cameraPositions = [];
+let currentPosition;
 let renderScene, composer;
 let instancedTrees, dofEffectUniforms;
 let fps;
 let testResults = [],
   times = [];
 let sizes;
+let readyToTest = false; // Flag to halt any testing logic before full asset load
 
 //Init scene and render animation loop
 init();
@@ -108,7 +110,7 @@ function init() {
   scene.add(camera);
 
   // Camera position loop
-  let currentPosition = 0;
+  currentPosition = 0;
   cameraPositions = [
     [0, 0, 15],
     [50, -90, 120],
@@ -116,16 +118,6 @@ function init() {
     [60, 5, 15],
     [-50, 15, -55],
   ];
-
-  setInterval(function () {
-    let indexPosition = ++currentPosition % cameraPositions.length;
-    camera.position.set(
-      cameraPositions[indexPosition][0],
-      cameraPositions[indexPosition][1],
-      cameraPositions[indexPosition][2]
-    );
-    camera.lookAt(0, 0, 0);
-  }, 20000);
 
   // Stats
   stats = new Stats();
@@ -171,9 +163,6 @@ function init() {
   // Init post-processing
   initPostProcessing();
 
-  // Clock timer
-  startClockTimer();
-
   // Test controls
   initTestResultControls();
 }
@@ -194,18 +183,18 @@ function animate() {
     clouds.forEach((cloud) => {
       cloud.material.uniforms.cameraPos.value.copy(camera.position);
       cloud.material.uniforms.frame.value++;
-      cloud.position.x += 0.05;
+      if (readyToTest) cloud.position.x += 0.05;
     });
   }
 
-  if (groundPlaneMesh) groundPlaneMesh.position.x += 0.05;
-  if (instancedTrees) instancedTrees.position.x += 0.05;
+  if (groundPlaneMesh && readyToTest) groundPlaneMesh.position.x += 0.05;
+  if (instancedTrees && readyToTest) instancedTrees.position.x += 0.05;
   if (instancedTrees && instancedTrees.position.x > 1600)
     instancedTrees.position.x = 0;
   if (groundPlaneMesh && groundPlaneMesh.position.x > 1300)
     groundPlaneMesh.position.x = -300;
 
-  if (sun && sunLight && sunEffectController) {
+  if (sun && sunLight && sunEffectController && readyToTest) {
     sunEffectController.elevation -= 0.05;
     phi = THREE.MathUtils.degToRad(90 - sunEffectController.elevation);
     theta = THREE.MathUtils.degToRad(sunEffectController.azimuth);
@@ -224,7 +213,7 @@ function animate() {
   stats.update();
 
   // Fps counter loop
-  fpsCounterLoop();
+  if (readyToTest) fpsCounterLoop();
 
   //Three-Devtools API
   if (typeof __THREE_DEVTOOLS__ !== "undefined") {
@@ -276,6 +265,11 @@ function loadBalloonModels() {
       if (i == balloonPlacements.length - 1) {
         document.getElementById("loader").style.display = "none";
         timer.start();
+        readyToTest = true;
+        // Camera animation loop
+        beginCameraLoop();
+        // Clock timer
+        startClockTimer();
       }
     });
   }
@@ -536,7 +530,7 @@ function startClockTimer() {
     document.getElementById(
       "timeElapsed"
     ).innerHTML = `Time elapsed: ${stringMinutes}:${stringSeconds}`;
-    if (Math.round(timer.getElapsedTime()) > 0) {
+    if (readyToTest) {
       testResults.push(fps);
     }
   }, 1000);
@@ -573,4 +567,16 @@ function fpsCounterLoop() {
   }
   times.push(now);
   fps = times.length;
+}
+
+function beginCameraLoop() {
+  setInterval(function () {
+    let indexPosition = ++currentPosition % cameraPositions.length;
+    camera.position.set(
+      cameraPositions[indexPosition][0],
+      cameraPositions[indexPosition][1],
+      cameraPositions[indexPosition][2]
+    );
+    camera.lookAt(0, 0, 0);
+  }, 20000);
 }
