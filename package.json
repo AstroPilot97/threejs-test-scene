@@ -29,7 +29,7 @@
   "dependencies": {
     "file-saver": "^2.0.5",
     "lil-gui": "^0.16.1",
-    "moment": "^2.29.1",
+    "moment": "^2.29.2",
     "npm-check-updates": "^12.5.4",
     "postprocessing": "^6.26.3",
     "stats.js": "^0.17.0"
