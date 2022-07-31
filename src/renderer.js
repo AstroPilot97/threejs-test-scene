@@ -42,7 +42,8 @@ let renderScene, composer;
 let instancedTrees, dofEffectUniforms;
 let fps;
 let testResults = [],
-  times = [];
+  times = [],
+  memoryUsage = [];
 let sizes;
 let readyToTest = false; // Flag to halt any testing logic before full asset load
 
@@ -530,8 +531,10 @@ function startClockTimer() {
     document.getElementById(
       "timeElapsed"
     ).innerHTML = `Time elapsed: ${stringMinutes}:${stringSeconds}`;
+    let memory = performance.memory;
     if (readyToTest) {
       testResults.push(fps);
+      memoryUsage.push(Math.round(memory.usedJSHeapSize / 1048576));
     }
   }, 1000);
 }
@@ -545,7 +548,9 @@ function initTestResultControls() {
           Testing date: ${Moment().toLocaleString()}; \n
           Screen resolution: width: ${sizes.width}, height: ${sizes.height} \n
           Frames per second (each FPS count in array was ticked every second):
-          [${testResults}]
+          ${testResults} \n
+          Memory usage (in Megabytes):
+          ${memoryUsage}
           `,
         ],
         "test_results.txt",
