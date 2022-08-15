@@ -137,6 +137,7 @@ function init() {
     antialias: true,
     stencil: false,
     depth: false,
+    powerPreference: "high-performance",
   });
 
   renderer.setSize(sizes.width, sizes.height);
