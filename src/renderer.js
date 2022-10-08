@@ -533,7 +533,7 @@ function initBenchmarkControls() {
   };
 
   gui
-    .add(refreshRateObj, "rate", { Unlimited: 0, "60Hz": 60, "30Hz": 30 })
+    .add(refreshRateObj, "rate", { Unlimited: 0, "60Hz": 60, "30Hz": 31 })
     .name("Refresh Rate")
     .onChange((value) => {
       refreshRate = value;
