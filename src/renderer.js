@@ -151,7 +151,7 @@ function initRenderer() {
   renderer = new THREE.WebGLRenderer({
     canvas: canvas,
     alpha: true,
-    antialias: true,
+    antialias: false,
     stencil: false,
     depth: false,
     powerPreference: "high-performance",
@@ -478,7 +478,7 @@ function initGroundPlane() {
 
 function initPostProcessing() {
   renderScene = new RenderPass(scene, camera);
-  composer = new EffectComposer(renderer);
+  composer = new EffectComposer(renderer, { multisampling: 0 });
   composer.addPass(renderScene);
   initBloom();
 }
@@ -539,6 +539,23 @@ function initBenchmarkControls() {
       refreshRate = value;
     });
 
+  let antialiasingObj = {
+    samples: 0,
+  };
+
+  gui
+    .add(antialiasingObj, "samples", {
+      Off: 0,
+      "2x": 2,
+      "4x": 4,
+      "8x": 8,
+      "16x": 16,
+    })
+    .name("Multisample Antialiasing")
+    .onChange((value) => {
+      composer.multisampling = value;
+    });
+
   let testButton = {
     BeginTest: function () {
       readyToTest = true;
@@ -549,7 +566,7 @@ function initBenchmarkControls() {
       startClockTimer();
     },
   };
-  gui.add(testButton, "BeginTest");
+  gui.add(testButton, "BeginTest").name("Begin test");
 }
 
 function setResolution(resolution) {
@@ -604,7 +621,7 @@ function initTestResultControls() {
     },
   };
 
-  gui.add(controlObj, "SaveTestResults");
+  gui.add(controlObj, "SaveTestResults").name("Save test results");
 }
 
 function fpsCounterLoop() {
