@@ -11,7 +11,6 @@ import {
   EffectPass,
   BloomEffect,
   RenderPass,
-  DepthOfFieldEffect,
 } from "postprocessing";
 import WebGL from "three/examples/jsm/capabilities/WebGL.js";
 import Stats from "three/examples/jsm/libs/stats.module.js";
@@ -39,15 +38,17 @@ let mixers = [],
   cameraPositions = [];
 let currentPosition;
 let renderScene, composer;
-let instancedTrees, dofEffectUniforms;
-let fps;
+let instancedTrees;
+let fps, delta;
 let testResults = [],
   times = [],
   memoryUsage = [];
-let sizes;
+let sizes = { width: 1920, height: 1080 };
+let refreshRate = 0;
 let readyToTest = false; // Flag to halt any testing logic before full asset load
 
 //Init scene and render animation loop
+initRenderer();
 init();
 animate();
 
@@ -59,9 +60,6 @@ function init() {
   // Debug
   gui = new GUI();
 
-  // Canvas
-  const canvas = document.querySelector("canvas.webgl");
-
   // Scene
   scene = new THREE.Scene();
 
@@ -72,14 +70,6 @@ function init() {
   gltfLoader = new GLTFLoader();
   loadBalloonModels();
   initForests();
-
-  /**
-   * Sizes
-   */
-  sizes = {
-    width: window.innerWidth,
-    height: window.innerHeight,
-  };
 
   window.addEventListener("resize", () => {
     // Update sizes
@@ -128,25 +118,6 @@ function init() {
   });
   document.body.appendChild(stats.dom);
 
-  /**
-   * Renderer
-   */
-  renderer = new THREE.WebGLRenderer({
-    canvas: canvas,
-    alpha: true,
-    antialias: true,
-    stencil: false,
-    depth: false,
-    powerPreference: "high-performance",
-  });
-
-  renderer.setSize(sizes.width, sizes.height);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 0.35;
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
   // Hemisphere light
   const hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 1);
   hemiLight.color.setHSL(0.6, 0.75, 0.5);
@@ -166,16 +137,42 @@ function init() {
   initPostProcessing();
 
   // Test controls
+  initBenchmarkControls();
   initTestResultControls();
+}
+
+function initRenderer() {
+  // Canvas
+  const canvas = document.querySelector("canvas.webgl");
+
+  /**
+   * Renderer
+   */
+  renderer = new THREE.WebGLRenderer({
+    canvas: canvas,
+    alpha: true,
+    antialias: true,
+    stencil: false,
+    depth: false,
+    powerPreference: "high-performance",
+  });
+  renderer.setSize(sizes.width, sizes.height, false);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 0.35;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 }
 
 // Animate
 function animate() {
   // Call tick again on the next frame
-  requestAnimationFrame(animate);
+  delta = clock.getDelta();
+  setTimeout(function () {
+    requestAnimationFrame(animate);
+  }, 1000 / refreshRate);
 
   // Update objects
-  const delta = clock.getDelta();
   if (mixers) {
     mixers.forEach((mixer) => {
       mixer.update(delta);
@@ -266,12 +263,6 @@ function loadBalloonModels() {
       scene.add(model);
       if (i == balloonPlacements.length - 1) {
         document.getElementById("loader").style.display = "none";
-        timer.start();
-        readyToTest = true;
-        // Camera animation loop
-        beginCameraLoop();
-        // Clock timer
-        startClockTimer();
       }
     });
   }
@@ -490,7 +481,6 @@ function initPostProcessing() {
   composer = new EffectComposer(renderer);
   composer.addPass(renderScene);
   initBloom();
-  initDepthOfField();
 }
 
 function initBloom() {
@@ -503,19 +493,6 @@ function initBloom() {
   };
   const bloomPass = new EffectPass(camera, new BloomEffect(bloomOptions));
   composer.addPass(bloomPass);
-}
-
-function initDepthOfField() {
-  dofEffectUniforms = {
-    focusDistance: 0,
-    focalLength: 0.064,
-    bokehScale: 2.0,
-    height: 480,
-  };
-  const depthOfFieldEffect = new DepthOfFieldEffect(camera, dofEffectUniforms);
-  const dofPass = new EffectPass(camera, depthOfFieldEffect);
-  dofPass.renderToScreen = true;
-  composer.addPass(dofPass);
 }
 
 function startClockTimer() {
@@ -540,6 +517,70 @@ function startClockTimer() {
   }, 1000);
 }
 
+function initBenchmarkControls() {
+  let resolutionObj = {
+    resolution: "FullHD",
+  };
+  gui
+    .add(resolutionObj, "resolution", ["FullHD", "WQHD", "4K"])
+    .name("Resolution")
+    .onChange((value) => {
+      setResolution(value);
+    });
+
+  let refreshRateObj = {
+    rate: 0,
+  };
+
+  gui
+    .add(refreshRateObj, "rate", { Unlimited: 0, "60Hz": 60, "30Hz": 30 })
+    .name("Refresh Rate")
+    .onChange((value) => {
+      refreshRate = value;
+    });
+
+  let testButton = {
+    BeginTest: function () {
+      readyToTest = true;
+      timer.start();
+      // Camera animation loop
+      beginCameraLoop();
+      // Clock timer
+      startClockTimer();
+    },
+  };
+  gui.add(testButton, "BeginTest");
+}
+
+function setResolution(resolution) {
+  switch (resolution) {
+    case "FullHD":
+      sizes = {
+        width: 1920,
+        height: 1080,
+      };
+      break;
+    case "WQHD":
+      sizes = {
+        width: 2560,
+        height: 1440,
+      };
+      break;
+    case "4K":
+      sizes = {
+        width: 3840,
+        height: 2160,
+      };
+      break;
+    default:
+      sizes = {
+        width: 1920,
+        height: 1080,
+      };
+  }
+  composer.setSize(sizes.width, sizes.height);
+}
+
 function initTestResultControls() {
   let controlObj = {
     SaveTestResults: function () {
@@ -547,7 +588,7 @@ function initTestResultControls() {
         [
           `Three.js performance test results \n
           Testing date: ${Moment().toLocaleString()}; \n
-          Screen resolution: width: ${sizes.width}, height: ${sizes.height} \n
+          Resolution: width: ${sizes.width}, height: ${sizes.height} \n
           Frames per second (each FPS count in array was ticked every second):
           ${testResults} \n
           Memory usage (in Megabytes):
