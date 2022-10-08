@@ -46,6 +46,7 @@ let testResults = [],
 let sizes = { width: 1920, height: 1080 };
 let refreshRate = 0;
 let readyToTest = false; // Flag to halt any testing logic before full asset load
+let msaaSamples;
 
 //Init scene and render animation loop
 initRenderer();
@@ -554,6 +555,7 @@ function initBenchmarkControls() {
     .name("Multisample Antialiasing")
     .onChange((value) => {
       composer.multisampling = value;
+      msaaSamples = value;
     });
 
   let testButton = {
@@ -606,6 +608,8 @@ function initTestResultControls() {
           `Three.js performance test results \n
           Testing date: ${Moment().toLocaleString()}; \n
           Resolution: width: ${sizes.width}, height: ${sizes.height} \n
+          Refresh rate: ${refreshRate} \n
+          MSAA: ${msaaSamples} \n
           Frames per second (each FPS count in array was ticked every second):
           ${testResults} \n
           Memory usage (in Megabytes):
